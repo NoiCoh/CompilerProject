@@ -165,6 +165,19 @@ public class SymbolTable {
 			}
 			this.locals.put(sy.name, sy);
 		}
+		public String findSymbolType(String name, enumKind kind) {
+			for (Map.Entry<String, Symb> symbol_entry : this.locals.entrySet()) {
+				String symbol_name = symbol_entry.getKey();
+				Symb symbol_value = symbol_entry.getValue();
+				enumKind symbol_kind = symbol_value.kind;
+				if (0 == name.compareTo(symbol_name)) {
+					if (symbol_kind.equals(kind)) {
+						return symbol_value.decl;
+					}
+				}
+			}
+			return "";
+		}
 
 		public Symb findSymbol(String name, enumKind kind, ArrayList<String> decls) {
 			for (Map.Entry<String, Symb> symbol_entry : this.locals.entrySet()) {

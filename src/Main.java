@@ -25,6 +25,12 @@ public class Main {
 
             var outFile = new PrintWriter(outfilename);
             try {
+                ArrayList<SymbolTable> symbol_tables = new ArrayList<SymbolTable>();
+                CreateSymbolTable create = new CreateSymbolTable(symbol_tables);
+                create.visit(prog);
+//                for (SymbolTable symbol_table : symbol_tables) {
+//                	symbol_table.printTable();
+//                }
 
                 if (action.equals("marshal")) {
                     AstXMLSerializer xmlSerializer = new AstXMLSerializer();
@@ -38,7 +44,9 @@ public class Main {
                     throw new UnsupportedOperationException("TODO - Ex. 3");
 
                 } else if (action.equals("compile")) {
-                    throw new UnsupportedOperationException("TODO - Ex. 2");
+                	LLVMVisitor llPrinter = new LLVMVisitor(symbol_tables);
+                	llPrinter.visit(prog);
+	                outFile.write(llPrinter.getString());
 
                 } else if (action.equals("rename")) {
                     var type = args[2];
@@ -47,13 +55,6 @@ public class Main {
                     var newName = args[5];
 
                     boolean isMethod;
-                    
-                    ArrayList<SymbolTable> symbol_tables = new ArrayList<SymbolTable>();
-                    CreateSymbolTable create = new CreateSymbolTable(symbol_tables);
-                    create.visit(prog);
-//                    for (SymbolTable symbol_table : symbol_tables) {
-//                    	symbol_table.printTable();
-//                    }
                     	
                     if (type.equals("var")) {
                         isMethod = false;
@@ -68,17 +69,12 @@ public class Main {
                     } else {
                         throw new IllegalArgumentException("unknown rename type " + type);
                     }
-
+                    
+                    AstXMLSerializer xmlSerializer = new AstXMLSerializer();
+                    xmlSerializer.serialize(prog, outfilename);
                 } else {
                     throw new IllegalArgumentException("unknown command line action " + action);
                 }
-                
-                AstXMLSerializer xmlSerializer = new AstXMLSerializer();
-                xmlSerializer.serialize(prog, outfilename);
-//                AstPrintVisitor astPrinter = new AstPrintVisitor();
-//                astPrinter.visit(prog);
-//                outFile.write(astPrinter.getString());
-                
             } finally {
                 outFile.flush();
                 outFile.close();
