@@ -8,7 +8,8 @@ public class CreateSymbolTable implements Visitor {
 	ArrayList<SymbolTable> symbol_tables ;
 	SymbolTable curr_symbol_table;
 	String curr_name = "";
-	enumKind curr_kind = enumKind.empty;;
+	enumKind curr_kind = enumKind.empty;
+	int vtable_index;
 	
 	public CreateSymbolTable(ArrayList<SymbolTable> symbol_tables) {
 		this.symbol_tables = symbol_tables;
@@ -24,10 +25,11 @@ public class CreateSymbolTable implements Visitor {
 
     @Override
     public void visit(ClassDecl classDecl) {
+    	vtable_index = 0;
         SymbolTable symbol_table = new SymbolTable();
         symbol_tables.add(symbol_table);
         curr_symbol_table = symbol_table;
-        symbol_table.openScope(scopeType.type_class, classDecl.name());
+        symbol_table.openScope(scopeType.type_class, classDecl.name(),0);
         //classDecl.scope = curr_symbol_table.curr_scope;
         if (classDecl.superName() != null) {
         	String super_name=classDecl.superName();
@@ -59,7 +61,7 @@ public class CreateSymbolTable implements Visitor {
     	SymbolTable symbol_table = new SymbolTable();
         symbol_tables.add(symbol_table);
         curr_symbol_table = symbol_table;
-        symbol_table.openScope(scopeType.type_class, mainClass.name());
+        symbol_table.openScope(scopeType.type_class, mainClass.name(), 0);
         //mainClass.scope = curr_symbol_table.curr_scope;
         mainClass.argsName();
         mainClass.mainStatement().accept(this);
@@ -70,11 +72,14 @@ public class CreateSymbolTable implements Visitor {
     	curr_name = methodDecl.name();
     	curr_kind = enumKind.method;
         methodDecl.returnType().accept(this);
-        curr_symbol_table.openScope(scopeType.method, methodDecl.name());
+        curr_symbol_table.openScope(scopeType.method, methodDecl.name(),vtable_index);
+        vtable_index++;
         //methodDecl.scope = curr_symbol_table.curr_scope;
 
         for (var formal : methodDecl.formals()) {
-        	curr_kind = enumKind.var;
+        	curr_kind = enumKind.arg;
+            formal.accept(this);
+            curr_kind = enumKind.var;
             formal.accept(this);
         }
 
@@ -107,7 +112,7 @@ public class CreateSymbolTable implements Visitor {
 
     @Override
     public void visit(BlockStatement blockStatement) {
-    	curr_symbol_table.openScope(scopeType.statement, "block");
+    	curr_symbol_table.openScope(scopeType.statement, "block",0);
     	//blockStatement.scope = curr_symbol_table.curr_scope;
         for (var s : blockStatement.statements()) {
             s.accept(this);
@@ -117,7 +122,7 @@ public class CreateSymbolTable implements Visitor {
 
     @Override
     public void visit(IfStatement ifStatement) {
-    	curr_symbol_table.openScope(scopeType.statement, "if");
+    	curr_symbol_table.openScope(scopeType.statement, "if",0);
     	//ifStatement.scope = curr_symbol_table.curr_scope;
         ifStatement.cond().accept(this);
         ifStatement.thencase().accept(this);
@@ -127,7 +132,7 @@ public class CreateSymbolTable implements Visitor {
 
     @Override
     public void visit(WhileStatement whileStatement) {
-    	curr_symbol_table.openScope(scopeType.statement, "while");
+    	curr_symbol_table.openScope(scopeType.statement, "while",0);
     	//whileStatement.scope = curr_symbol_table.curr_scope;
         whileStatement.cond().accept(this);
         whileStatement.body().accept(this);
@@ -211,6 +216,9 @@ public class CreateSymbolTable implements Visitor {
 
     @Override
     public void visit(IntAstType t) {
+    	if(curr_kind==enumKind.arg) {
+    		curr_name = "%" + curr_name;
+    	}
     	curr_symbol_table.addSymbol(curr_name, "int", curr_kind);
     	curr_name = "";
     	curr_kind = enumKind.empty;
@@ -218,6 +226,9 @@ public class CreateSymbolTable implements Visitor {
 
     @Override
     public void visit(BoolAstType t) {
+    	if(curr_kind==enumKind.arg) {
+    		curr_name = "%" + curr_name;
+    	}
     	curr_symbol_table.addSymbol(curr_name, "bool", curr_kind);
     	curr_name = "";
     	curr_kind = enumKind.empty;
@@ -225,6 +236,9 @@ public class CreateSymbolTable implements Visitor {
 
     @Override
     public void visit(IntArrayAstType t) {
+    	if(curr_kind==enumKind.arg) {
+    		curr_name = "%" + curr_name;
+    	}
     	curr_symbol_table.addSymbol(curr_name, "int_array", curr_kind);
     	curr_name = "";
     	curr_kind = enumKind.empty;
@@ -232,6 +246,9 @@ public class CreateSymbolTable implements Visitor {
 
     @Override
     public void visit(RefType t) {
+    	if(curr_kind==enumKind.arg) {
+    		curr_name = "%" + curr_name;
+    	}
     	curr_symbol_table.addSymbol(curr_name, t.id(), curr_kind);
     	curr_name = "";
     	curr_kind = enumKind.empty;

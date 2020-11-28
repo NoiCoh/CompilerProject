@@ -7,13 +7,13 @@ import ast.SymbolTable.Symb;
 
 public class LLVMVisitor implements Visitor {
     private StringBuilder builder = new StringBuilder();
-    private int counter = 0;
+    public static int counter;
     ArrayList<SymbolTable> symbol_tables;
     Stack<Entry> registers_queue  = new Stack<>();
     String curr_class  = "";
 	String curr_method = "";
 	int formalsStep = 0;
-    
+	int ifCounter = 0;
     
     private int indent = 0;
     
@@ -32,14 +32,17 @@ public class LLVMVisitor implements Visitor {
     }
 
     private void visitBinaryExpr(BinaryExpr e, String infixSymbol) {
-        
-    	appendWithIndent("%" + counter +" = ");
-    	registers_queue.add(new Entry(counter,"i32"));
+    	e.e1().accept(this);
+    	e.e2().accept(this);
+    	Entry e2 = registers_queue.pop();
+    	Entry e1 = registers_queue.pop();
+    	
+    	appendWithIndent("%_" + counter +" = ");
+    	registers_queue.add(new Entry("%" + counter,"i32"));
     	counter++;
+    	
     	builder.append(infixSymbol + " i32 ");
-        e.e1().accept(this);
-        builder.append(", ");
-        e.e2().accept(this);
+    	builder.append(e1.getVarName() +", " + e2.getVarName());     
         builder.append("\n");
     }
 
@@ -80,6 +83,7 @@ public class LLVMVisitor implements Visitor {
 
     @Override
     public void visit(MainClass mainClass) {
+    	curr_class = "";
         appendWithIndent("class ");
         builder.append(mainClass.name());
         builder.append(" {\n");
@@ -120,16 +124,18 @@ public class LLVMVisitor implements Visitor {
         for (var varDecl : methodDecl.vardecls()) {
             varDecl.accept(this);
         }
-        for (var stmt : methodDecl.body()) {
-            stmt.accept(this);
-        }
+        LLVMStatements llstat = new LLVMStatements(symbol_tables, curr_class);
+        llstat.visit(methodDecl);
+    	builder.append(llstat.getString());
 
         
         methodDecl.ret().accept(this);
         appendWithIndent("ret ");
-        Entry entry = registers_queue.pop();
-        builder.append(entry.getVal());
-        builder.append(" %" + entry.getKey());
+        if(! registers_queue.isEmpty()) {
+        	Entry entry = registers_queue.pop();
+            builder.append(entry.getType());
+            builder.append(" " + entry.getVarName());
+        }
         builder.append("\n}");
     }
 
@@ -166,19 +172,17 @@ public class LLVMVisitor implements Visitor {
     @Override
     public void visit(BlockStatement blockStatement) {
         appendWithIndent("{");
-        indent++;
         for (var s : blockStatement.statements()) {
             builder.append("\n");
             s.accept(this);
         }
-        indent--;
         builder.append("\n");
         appendWithIndent("}\n");
     }
 
     @Override
     public void visit(IfStatement ifStatement) {
-        appendWithIndent("if (");
+    	//builder.append("if" + ifCounter + ":");
         ifStatement.cond().accept(this);
         builder.append(")\n");
         indent++;
@@ -213,7 +217,7 @@ public class LLVMVisitor implements Visitor {
     public void visit(AssignStatement assignStatement) {
     	appendWithIndent("store ");
     	
-    	SymbolTable curr_symbol_table = returnCurrTable();
+    	SymbolTable curr_symbol_table = returnCurrTable(curr_class);
 		String lv_type = "";
 		lv_type = curr_symbol_table.curr_scope.findSymbolType(assignStatement.lv(), enumKind.field);
 		if(lv_type.equals("")) {
@@ -258,8 +262,9 @@ public class LLVMVisitor implements Visitor {
     }
 
     @Override
-    public void visit(LtExpr e) {
-        visitBinaryExpr(e, "<");;
+    public void visit(LtExpr e) { // <
+        e.e1().accept(this);
+        e.e2().accept(this);
     }
 
     @Override
@@ -315,7 +320,7 @@ public class LLVMVisitor implements Visitor {
 
     @Override
     public void visit(IntegerLiteralExpr e) {
-        builder.append(e.num());
+    	registers_queue.add(new Entry("" + e.num(),"i32"));
     }
 
     @Override
@@ -330,8 +335,30 @@ public class LLVMVisitor implements Visitor {
 
     @Override
     public void visit(IdentifierExpr e) {
-        builder.append("%" + e.id());
+       //%_0 = load i32, i32* %num
+    	appendWithIndent("%_"+ counter + " = load ");
+    	
+    	SymbolTable curr_symbol_table = returnCurrTable(curr_class);
+		String type = "";
+		if(curr_symbol_table != null) {
+			type = curr_symbol_table.curr_scope.findSymbolType(e.id(), enumKind.field);
+			if(type.equals("")) {
+				// find if originalName defined in method
+		    	if(curr_symbol_table != null) {
+		    		Scope curr_method_scope = curr_symbol_table.findScope(curr_method,scopeType.method);
+		    		if(curr_method_scope != null) {
+		    			type = curr_method_scope.findSymbolType(e.id(), enumKind.var);
+		    		}
+				}
+			}
+			String convert_type = typeConvertor(type);
+			builder.append(convert_type+ ", " + convert_type+ "* ");
+			builder.append("%" + e.id() + "\n");
+			registers_queue.add(new Entry("%_" + counter,convert_type));
+			counter++;
+		}
     }
+
 
     public void visit(ThisExpr e) {
         builder.append("this");
@@ -377,7 +404,7 @@ public class LLVMVisitor implements Visitor {
     public void visit(RefType t) {
         builder.append(t.id());
     }
-    public SymbolTable returnCurrTable() {
+    public SymbolTable returnCurrTable(String curr_class) {
 		//init variables
     	Scope curr_class_scope = null;
     	SymbolTable curr_symbol_table = null;

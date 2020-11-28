@@ -4,7 +4,7 @@ import java.util.*;
 import ast.*;
 
 enum enumKind {
-	method, var, field, empty
+	method, var, field, arg, empty
 };
 
 enum scopeType {
@@ -56,7 +56,7 @@ public class SymbolTable {
 		while (stack.empty() == false) {
 			// Pop a vertex from stack and print it
 			scope = stack.peek();
-			System.out.println("scope_name: " + scope.name + " Scope_type: " + scope.type.toString());
+			System.out.println("scope_name: " + scope.name + " Scope_type: " + scope.type.toString() + " vtable_index: " + scope.vtable_index);
 			scope.printLocals();
 			stack.pop();
 
@@ -72,8 +72,8 @@ public class SymbolTable {
 	}
 
 	// open a new scope and make it the current scope (topScope)
-	public void openScope(scopeType type, String name) {
-		Scope new_scope = new Scope(this.curr_level++, type, name);
+	public void openScope(scopeType type, String name, int vtable_index) {
+		Scope new_scope = new Scope(this.curr_level++, type, name, vtable_index);
 		new_scope.prev = curr_scope;
 		if (curr_scope != null) {
 			curr_scope.next.add(new_scope);
@@ -137,16 +137,17 @@ public class SymbolTable {
 		public ArrayList<Scope> next = new ArrayList<Scope>();
 		public scopeType type;
 		public String name;
-		public int frame_size, level;
+		public int frame_size, level, vtable_index;
 
-		private HashMap<String, Symb> locals = new HashMap<String, Symb>(); // to locally declared objects
+		public HashMap<String, Symb> locals = new HashMap<String, Symb>(); // to locally declared objects
 
 
-		public Scope(int level, scopeType type, String name) {
+		public Scope(int level, scopeType type, String name, int vtable_index) {
 			this.level = level;
 			this.frame_size = 0;
 			this.type = type;
 			this.name = name;
+			this.vtable_index = vtable_index;
 		}
 
 		public void printLocals() {
