@@ -13,7 +13,7 @@ public class LLVMVisitor implements Visitor {
     String curr_class  = "";
 	String curr_method = "";
 	int formalsStep = 0;
-	int ifCounter = 0;
+	int branchCounter = 0;
     
     private int indent = 0;
     
@@ -124,10 +124,9 @@ public class LLVMVisitor implements Visitor {
         for (var varDecl : methodDecl.vardecls()) {
             varDecl.accept(this);
         }
-        LLVMStatements llstat = new LLVMStatements(symbol_tables, curr_class);
-        llstat.visit(methodDecl);
-    	builder.append(llstat.getString());
-
+        for (var stmt : methodDecl.body()) {
+            stmt.accept(this);
+        }
         
         methodDecl.ret().accept(this);
         appendWithIndent("ret ");
@@ -171,27 +170,34 @@ public class LLVMVisitor implements Visitor {
 
     @Override
     public void visit(BlockStatement blockStatement) {
-        appendWithIndent("{");
         for (var s : blockStatement.statements()) {
-            builder.append("\n");
             s.accept(this);
         }
         builder.append("\n");
-        appendWithIndent("}\n");
     }
 
     @Override
     public void visit(IfStatement ifStatement) {
-    	//builder.append("if" + ifCounter + ":");
+    	//br i1 %_1, label %if0, label %if1
         ifStatement.cond().accept(this);
-        builder.append(")\n");
-        indent++;
+        Entry e = registers_queue.pop();
+        appendWithIndent("br " + e.getType() +" " + e.getVarName() + ", label %if"+ branchCounter + ", ");
+        branchCounter++;
+        builder.append("label %if"+ branchCounter+"\n");
+        branchCounter--;
+        builder.append("if" + branchCounter + ":\n");
+        branchCounter++;
         ifStatement.thencase().accept(this);
-        indent--;
-        appendWithIndent("else\n");
-        indent++;
+        branchCounter++;
+        // br label %if2
+        appendWithIndent("br label %if" + branchCounter + "\n");
+        branchCounter--;
+        builder.append("if" + branchCounter + ":\n");
         ifStatement.elsecase().accept(this);
-        indent--;
+        branchCounter++;
+        // br label %if2
+        appendWithIndent("br label %if" + branchCounter + "\n");
+        builder.append("if" + branchCounter +":\n");
     }
 
     @Override
@@ -215,8 +221,9 @@ public class LLVMVisitor implements Visitor {
 
     @Override
     public void visit(AssignStatement assignStatement) {
+    	assignStatement.rv().accept(this);
+    	//store i32 %_11, i32* %num_aux	
     	appendWithIndent("store ");
-    	
     	SymbolTable curr_symbol_table = returnCurrTable(curr_class);
 		String lv_type = "";
 		lv_type = curr_symbol_table.curr_scope.findSymbolType(assignStatement.lv(), enumKind.field);
@@ -225,23 +232,22 @@ public class LLVMVisitor implements Visitor {
 	    	if(curr_symbol_table != null) {
 	    		Scope curr_method_scope = curr_symbol_table.findScope(curr_method,scopeType.method);
 	    		if(curr_method_scope != null) {
-	    			lv_type = curr_method_scope.findSymbolType(assignStatement.lv(), enumKind.var);
-	    			String type = typeConvertor(lv_type);
-	    			builder.append(type + " ");
-	    			assignStatement.rv().accept(this);
-	    			builder.append(", " + type+ "* ");	
+	    			lv_type = curr_method_scope.findSymbolType(assignStatement.lv(), enumKind.var);	
 	    		}
 			}
 		}
-		else {
-			String type = typeConvertor(lv_type);
-			builder.append(type+ " ");
-			assignStatement.rv().accept(this);
-			builder.append(", " + type+ "* ");	
+		String type = typeConvertor(lv_type);
+		builder.append(type+ " ");
+		if(!registers_queue.empty()) {
+			String register = registers_queue.pop().getVarName();
+			builder.append(register +", " + type+ "* ");	
+		    builder.append("%");
+		    builder.append(assignStatement.lv());
+		    builder.append("\n");
 		}
-        builder.append("%");
-        builder.append(assignStatement.lv());
-        builder.append("\n");
+		else {
+			System.out.println("problem in visit(AssignStatement assignStatement)");
+		}
     }
 
     @Override
@@ -260,11 +266,19 @@ public class LLVMVisitor implements Visitor {
     public void visit(AndExpr e) {
         visitBinaryExpr(e, "and");
     }
-
+    
     @Override
-    public void visit(LtExpr e) { // <
+    public void visit(LtExpr e) { // %_1 = icmp slt i32 %_0, 1
         e.e1().accept(this);
         e.e2().accept(this);
+        appendWithIndent("%_" + counter + " = " + "icmp slt ");
+        if(registers_queue.size() >= 2) {
+        	Entry e1 = registers_queue.pop();
+        	Entry e2 = registers_queue.pop();
+        	builder.append(e1.getType() + " " + e1.getVarName() +", " + e2.getVarName() +"\n");
+        	registers_queue.add(new Entry("%_" + counter,"i1"));
+        	counter++;
+        }      
     }
 
     @Override
@@ -302,20 +316,69 @@ public class LLVMVisitor implements Visitor {
 
     @Override
     public void visit(MethodCallExpr e) {
-        builder.append("(");
-        e.ownerExpr().accept(this);
-        builder.append(")");
-        builder.append(".");
-        builder.append(e.methodId());
-        builder.append("(");
-
-        String delim = "";
-        for (Expr arg : e.actuals()) {
-            builder.append(delim);
-            arg.accept(this);
-            delim = ", ";
-        }
-        builder.append(")");
+    	e.ownerExpr().accept(this);
+//		%_4 = load i8**, i8*** %_3
+    	if(!registers_queue.empty()) {
+    		Entry entry = registers_queue.pop();
+    		appendWithIndent("%_" + counter + " = load " + entry.getType() + "*, "+ entry.getType() + "** " + entry.getVarName() + "\n");
+    		counter++;
+    		
+//    	%_5 = getelementptr i8*, i8** %_4, i32 0
+    		appendWithIndent("%_" + counter + " = getelementptr " + entry.getType()+", " + entry.getType() +"* ");
+    		counter--;
+    		SymbolTable curr_symbol_table = returnCurrTable(curr_class);
+    		
+    	    if(curr_symbol_table != null) {
+        		String curr_method_ret = curr_symbol_table.curr_scope.findSymbolType(e.methodId(),enumKind.method);
+        		String convert_ret_type = typeConvertor(curr_method_ret);
+    	    	
+    	    	Scope curr_method_scope = curr_symbol_table.findScope(e.methodId(),scopeType.method);
+    	    	builder.append("%_" + counter + ", " + "i32 " + curr_method_scope.vtable_index + "\n");
+//    	    	%_6 = load i8*, i8** %_5
+        	    counter +=2;
+        	    appendWithIndent("%_" + counter + " = load " + entry.getType() + ", " + entry.getType() +"* ");
+        	    counter--;
+        	    builder.append("%_" + counter + "\n");
+        	    counter +=2;
+//        		%_7 = bitcast i8* %_6 to i32 (i8*, i32)*
+        	    appendWithIndent("%_" + counter + " = bitcast " + entry.getType());
+        	    registers_queue.add(new Entry("%_" + counter, entry.getType()));
+        	    counter--;
+        	    builder.append(" %_" + counter + " to "+ convert_ret_type + " (i8*");
+        	    for( Symb sym : curr_method_scope.locals.values()) {
+        	    	if(sym.kind == enumKind.arg) {
+        	    		builder.append(", ");
+        	    		String convert_arg_type = typeConvertor(sym.decl);
+        	    		builder.append(convert_arg_type);
+        	    	}
+        	    }
+        	    builder.append(")*\n");
+        	    counter +=2;
+        	    
+//        		%_8 = load i32, i32* %num
+//            	%_9 = sub i32 %_8, 1
+                String delim = "";
+                ArrayList<Entry> args= new ArrayList<Entry>();
+                for (Expr arg : e.actuals()) {
+                    builder.append(delim);
+                    arg.accept(this);
+                    delim = ", ";
+                    if(!registers_queue.empty()) {
+                    	args.add(registers_queue.pop());
+                    }
+                }
+//              %_10 = call i32 %_7(i8* %this, i32 %_9)
+        	    appendWithIndent("%_" + counter + " = call " + convert_ret_type + " " + registers_queue.pop().getVarName());
+        	    registers_queue.add(new Entry("%_" + counter, convert_ret_type));
+        	    counter++;
+        	    builder.append("(i8* %this");
+        	    for(Entry arg : args) {
+        	    	builder.append(", ");
+        	    	builder.append(arg.getType() + " " + arg.getVarName());
+        	    }
+        	    builder.append(")\n");   
+    	    }
+    	}      
     }
 
     @Override
@@ -359,9 +422,12 @@ public class LLVMVisitor implements Visitor {
 		}
     }
 
-
+    @Override
     public void visit(ThisExpr e) {
-        builder.append("this");
+//    	%_3 = bitcast i8* %this to i8***
+    	appendWithIndent("%_"+ counter + " = bitcast i8* %this to i8***\n");
+    	registers_queue.add(new Entry("%_" + counter,"i8*"));
+    	counter++;
     }
 
     @Override
