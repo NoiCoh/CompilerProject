@@ -1,20 +1,23 @@
 package ast;
 
 import java.util.ArrayList;
+import java.util.Map;
 
 import ast.SymbolTable.Scope;
+import ast.SymbolTable.Symb;
 
 public class CreateSymbolTable implements Visitor {
 	ArrayList<SymbolTable> symbol_tables ;
 	SymbolTable curr_symbol_table;
 	String curr_name = "";
 	enumKind curr_kind = enumKind.empty;
-	int vtable_index;
+	int method_vtable_index;
+	int fields_vtable_index;
 	
 	public CreateSymbolTable(ArrayList<SymbolTable> symbol_tables) {
 		this.symbol_tables = symbol_tables;
 	}
-
+    
     @Override
     public void visit(Program program) {
         program.mainClass().accept(this);
@@ -25,34 +28,64 @@ public class CreateSymbolTable implements Visitor {
 
     @Override
     public void visit(ClassDecl classDecl) {
-    	vtable_index = 0;
+    	method_vtable_index = 0;
+    	fields_vtable_index = 8;
         SymbolTable symbol_table = new SymbolTable();
         symbol_tables.add(symbol_table);
         curr_symbol_table = symbol_table;
-        symbol_table.openScope(scopeType.type_class, classDecl.name(),0);
+        symbol_table.openScope(scopeType.type_class, classDecl.name());
         //classDecl.scope = curr_symbol_table.curr_scope;
+        Scope super_scope=null;
         if (classDecl.superName() != null) {
         	String super_name=classDecl.superName();
-        	Scope super_scope=null;
         	for(SymbolTable t:symbol_tables) {
         		if (0==t.curr_scope.name.compareTo(super_name)) {
         			super_scope=t.curr_scope;
         			if (super_scope!=null) {
         				break;
-        			}
-        	}}
+        			}	
+        		}
+        	}
         	if (super_scope!=null) {
 	            curr_symbol_table.curr_scope.prev=super_scope;
-	        	super_scope.next.add(curr_symbol_table.curr_scope);}
-        		//System.out.println("Super :"+ classDecl.superName());
-        	}
+	        	super_scope.next.add(curr_symbol_table.curr_scope);
+	        }
+        	//System.out.println("Super :"+ classDecl.superName());
+        }
         for (var fieldDecl : classDecl.fields()) {
         	curr_kind = enumKind.field;
             fieldDecl.accept(this);
+            fields_vtable_index+= 4;
         }
+
         for (var methodDecl : classDecl.methoddecls()) {
         	methodDecl.accept(this);
+        	method_vtable_index++;
         }
+        int numOfFields= classDecl.fields().size();
+        int numOfMethod = classDecl.methoddecls().size();
+        if (super_scope!=null) {
+	        for(Map.Entry<String, Symb> entry :super_scope.locals.entrySet()) {
+	        	ArrayList<String> decl = new ArrayList<String>();
+				decl.add(entry.getValue().decl);
+				if(entry.getValue().kind == enumKind.method || entry.getValue().kind == enumKind.method_extend) {
+					if(!curr_symbol_table.curr_scope.locals.keySet().contains(entry.getKey())) {
+		        		curr_symbol_table.addSymbol(entry.getKey(),entry.getValue().decl ,enumKind.method_extend, entry.getValue().extendFrom,method_vtable_index);
+		        		numOfMethod++;
+		        		method_vtable_index++;
+		        	}
+				}
+				if(entry.getValue().kind == enumKind.field || entry.getValue().kind == enumKind.field_extend) {
+					if(!curr_symbol_table.curr_scope.locals.keySet().contains(entry.getKey())) {
+		        		curr_symbol_table.addSymbol(entry.getKey(),entry.getValue().decl ,enumKind.field_extend, entry.getValue().extendFrom,fields_vtable_index);
+		        		numOfFields++;
+		        		fields_vtable_index+= 4;
+		        	}
+				}
+			}
+        }
+        curr_symbol_table.curr_scope.setNumOfFields(numOfFields);
+        curr_symbol_table.curr_scope.setNumOfMethods(numOfMethod);
     }
 
     @Override
@@ -61,7 +94,7 @@ public class CreateSymbolTable implements Visitor {
     	SymbolTable symbol_table = new SymbolTable();
         symbol_tables.add(symbol_table);
         curr_symbol_table = symbol_table;
-        symbol_table.openScope(scopeType.type_class, mainClass.name(), 0);
+        symbol_table.openScope(scopeType.type_class, mainClass.name());
         //mainClass.scope = curr_symbol_table.curr_scope;
         mainClass.argsName();
         mainClass.mainStatement().accept(this);
@@ -72,8 +105,7 @@ public class CreateSymbolTable implements Visitor {
     	curr_name = methodDecl.name();
     	curr_kind = enumKind.method;
         methodDecl.returnType().accept(this);
-        curr_symbol_table.openScope(scopeType.method, methodDecl.name(),vtable_index);
-        vtable_index++;
+        curr_symbol_table.openScope(scopeType.method, methodDecl.name());
         //methodDecl.scope = curr_symbol_table.curr_scope;
 
         for (var formal : methodDecl.formals()) {
@@ -112,7 +144,7 @@ public class CreateSymbolTable implements Visitor {
 
     @Override
     public void visit(BlockStatement blockStatement) {
-    	curr_symbol_table.openScope(scopeType.statement, "block",0);
+    	curr_symbol_table.openScope(scopeType.statement, "block");
     	//blockStatement.scope = curr_symbol_table.curr_scope;
         for (var s : blockStatement.statements()) {
             s.accept(this);
@@ -122,7 +154,7 @@ public class CreateSymbolTable implements Visitor {
 
     @Override
     public void visit(IfStatement ifStatement) {
-    	curr_symbol_table.openScope(scopeType.statement, "if",0);
+    	curr_symbol_table.openScope(scopeType.statement, "if");
     	//ifStatement.scope = curr_symbol_table.curr_scope;
         ifStatement.cond().accept(this);
         ifStatement.thencase().accept(this);
@@ -132,7 +164,7 @@ public class CreateSymbolTable implements Visitor {
 
     @Override
     public void visit(WhileStatement whileStatement) {
-    	curr_symbol_table.openScope(scopeType.statement, "while",0);
+    	curr_symbol_table.openScope(scopeType.statement, "while");
     	//whileStatement.scope = curr_symbol_table.curr_scope;
         whileStatement.cond().accept(this);
         whileStatement.body().accept(this);
@@ -216,40 +248,68 @@ public class CreateSymbolTable implements Visitor {
 
     @Override
     public void visit(IntAstType t) {
+    	int vtable_index = 0;
     	if(curr_kind==enumKind.arg) {
     		curr_name = "%" + curr_name;
     	}
-    	curr_symbol_table.addSymbol(curr_name, "int", curr_kind);
+    	if(curr_kind==enumKind.method) {
+    		vtable_index = method_vtable_index;
+    	}
+    	else if(curr_kind==enumKind.field) {
+    		vtable_index = fields_vtable_index;
+    	}
+    	curr_symbol_table.addSymbol(curr_name, "int", curr_kind, curr_symbol_table.curr_scope.name,vtable_index);
     	curr_name = "";
     	curr_kind = enumKind.empty;
     }
 
     @Override
     public void visit(BoolAstType t) {
+    	int vtable_index = 0;
     	if(curr_kind==enumKind.arg) {
     		curr_name = "%" + curr_name;
     	}
-    	curr_symbol_table.addSymbol(curr_name, "bool", curr_kind);
+    	if(curr_kind==enumKind.method) {
+    		vtable_index = method_vtable_index;
+    	}
+    	else if(curr_kind==enumKind.field) {
+    		vtable_index = fields_vtable_index;
+    	}
+    	curr_symbol_table.addSymbol(curr_name, "bool", curr_kind, curr_symbol_table.curr_scope.name,vtable_index);
     	curr_name = "";
     	curr_kind = enumKind.empty;
     }
 
     @Override
     public void visit(IntArrayAstType t) {
+    	int vtable_index = 0;
     	if(curr_kind==enumKind.arg) {
     		curr_name = "%" + curr_name;
     	}
-    	curr_symbol_table.addSymbol(curr_name, "int_array", curr_kind);
+    	if(curr_kind==enumKind.method) {
+    		vtable_index = method_vtable_index;
+    	}
+    	else if(curr_kind==enumKind.field) {
+    		vtable_index = fields_vtable_index;
+    	}
+    	curr_symbol_table.addSymbol(curr_name, "int_array", curr_kind,curr_symbol_table.curr_scope.name,vtable_index);
     	curr_name = "";
     	curr_kind = enumKind.empty;
     }
 
     @Override
     public void visit(RefType t) {
+    	int vtable_index = 0;
     	if(curr_kind==enumKind.arg) {
     		curr_name = "%" + curr_name;
     	}
-    	curr_symbol_table.addSymbol(curr_name, t.id(), curr_kind);
+    	if(curr_kind==enumKind.method) {
+    		vtable_index = method_vtable_index;
+    	}
+    	else if(curr_kind==enumKind.field) {
+    		vtable_index = fields_vtable_index;
+    	}
+    	curr_symbol_table.addSymbol(curr_name, t.id(), curr_kind, curr_symbol_table.curr_scope.name,vtable_index);
     	curr_name = "";
     	curr_kind = enumKind.empty;
     }

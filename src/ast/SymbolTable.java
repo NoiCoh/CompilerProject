@@ -4,7 +4,7 @@ import java.util.*;
 import ast.*;
 
 enum enumKind {
-	method, var, field, arg, empty
+	method, var, field, arg, empty, method_extend, field_extend
 };
 
 enum scopeType {
@@ -56,7 +56,10 @@ public class SymbolTable {
 		while (stack.empty() == false) {
 			// Pop a vertex from stack and print it
 			scope = stack.peek();
-			System.out.println("scope_name: " + scope.name + " Scope_type: " + scope.type.toString() + " vtable_index: " + scope.vtable_index);
+			System.out.println("scope_name: " + scope.name + " Scope_type: " + scope.type.toString());
+			if(scope.type == scopeType.type_class) {
+				System.out.println("num of methods: " + scope.num_of_methods + " num of fields: " + scope.num_of_fields);
+			}
 			scope.printLocals();
 			stack.pop();
 
@@ -72,8 +75,8 @@ public class SymbolTable {
 	}
 
 	// open a new scope and make it the current scope (topScope)
-	public void openScope(scopeType type, String name, int vtable_index) {
-		Scope new_scope = new Scope(this.curr_level++, type, name, vtable_index);
+	public void openScope(scopeType type, String name) {
+		Scope new_scope = new Scope(this.curr_level++, type, name);
 		new_scope.prev = curr_scope;
 		if (curr_scope != null) {
 			curr_scope.next.add(new_scope);
@@ -87,9 +90,8 @@ public class SymbolTable {
 		this.curr_level--;
 	}
 
-	// TODO: should the store location come from the parser?
-	public Symb addSymbol(String name, String decl, enumKind kind) {
-		Symb new_method = new Symb(name, decl, kind);
+	public Symb addSymbol(String name, String decl, enumKind kind, String extendFrom, int vtableindex) {
+		Symb new_method = new Symb(name, decl, kind,extendFrom, vtableindex);
 		this.curr_scope.addSymbol(new_method);
 		return new_method;
 	}
@@ -112,12 +114,16 @@ public class SymbolTable {
 		String name;
 		enumKind kind;
 		String decl;
+		String extendFrom;
+		int vtableindex;
 
-		public Symb(String name, String decl, enumKind kind) {
+
+		public Symb(String name, String decl, enumKind kind, String extendFrom, int vtableindex) {
 			this.name = name;
 			this.decl = decl;
 			this.kind = kind;
-
+			this.extendFrom = extendFrom;
+			this.vtableindex = vtableindex;
 		}
 
 		public boolean compareSymbol(Symb otherSymbol) {
@@ -137,24 +143,32 @@ public class SymbolTable {
 		public ArrayList<Scope> next = new ArrayList<Scope>();
 		public scopeType type;
 		public String name;
-		public int frame_size, level, vtable_index;
+		public int frame_size, level, num_of_methods,  num_of_fields;
 
 		public HashMap<String, Symb> locals = new HashMap<String, Symb>(); // to locally declared objects
 
 
-		public Scope(int level, scopeType type, String name, int vtable_index) {
+		public Scope(int level, scopeType type, String name) {
 			this.level = level;
 			this.frame_size = 0;
 			this.type = type;
 			this.name = name;
-			this.vtable_index = vtable_index;
+			this.num_of_methods = 0;
+			this.num_of_fields = 0;
+		}
+		
+		public void setNumOfMethods(int num) {
+			this.num_of_methods = num;
+		}
+		public void setNumOfFields(int num) {
+			this.num_of_fields = num;
 		}
 
 		public void printLocals() {
 			for (Map.Entry<String, Symb> symbol_entry : this.locals.entrySet()) {
 				String name = symbol_entry.getKey();
 				Symb var = symbol_entry.getValue();
-				System.out.println(name + " : " + var.kind.toString() + " : " + var.decl);
+				System.out.println(name + " : " + var.kind.toString() + " : " + var.decl+ " : " + var.extendFrom +" : " + var.vtableindex);
 			}
 		}
 

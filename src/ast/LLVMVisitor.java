@@ -12,10 +12,11 @@ public class LLVMVisitor implements Visitor {
     Stack<Entry> registers_queue  = new Stack<>();
     String curr_class  = "";
 	String curr_method = "";
+	String callerClass = "";
 	int formalsStep = 0;
 	int branchCounter = 0;
 	int arrAllocCounter = 0;
-    
+	
     private int indent = 0;
     
 
@@ -31,7 +32,49 @@ public class LLVMVisitor implements Visitor {
         builder.append("\t".repeat(indent));
         builder.append(str);
     }
-    
+     
+    public void printVtable() {
+    	for( SymbolTable symbol_table : symbol_tables) {
+    		Scope curr_class = symbol_table.curr_scope;
+    		if(curr_class.type == scopeType.type_class && !(curr_class.name.equals("Main"))) {
+    			builder.append("@." + curr_class.name + "_vtable = global ["+ curr_class.num_of_methods + " x i8*] [");
+    			int count = curr_class.num_of_methods;
+    			if(count > 1) {
+    				builder.append("\n\t");
+    			}
+    			for(Map.Entry<String, Symb> entry : curr_class.locals.entrySet()) {
+    				if(entry.getValue().kind == enumKind.method || entry.getValue().kind == enumKind.method_extend) {
+    					count--;
+    					String convert_ret_type = typeConvertor(entry.getValue().decl);
+    					Scope curr_method = symbol_table.findScope(entry.getKey(), scopeType.method);
+    					if(curr_method == null) {
+    						SymbolTable extendSymbolTable = returnCurrTable(entry.getValue().extendFrom);
+    						curr_method = extendSymbolTable.findScope(entry.getKey(), scopeType.method);
+    					}
+    					if(curr_method != null) {
+    						builder.append("i8* bitcast (" + convert_ret_type + " (i8*");
+    		        	    for( Symb sym : curr_method.locals.values()) {
+    		        	    	if(sym.kind == enumKind.arg) {
+    		        	    		builder.append(", ");
+    								String convert_arg_type = typeConvertor(sym.decl);
+    								builder.append(convert_arg_type);
+    		        	    	}
+    		        	    }
+    		        	    builder.append(")* @"+ entry.getValue().extendFrom + "."+ entry.getValue().name +" to i8*)");
+    			        	if(count > 0) {
+    			        		builder.append(",\n\t");
+    		    			}
+    					}
+    				}
+    			 }
+    			 if(curr_class.num_of_methods > 1) {
+    				 builder.append("\n");
+    			 }
+    			 builder.append("]\n\n"); 
+    		}
+    	}
+    }
+
     public void printStart() {
     	builder.append("declare i8* @calloc(i32, i32)\n");
     	builder.append("declare i32 @printf(i8*, ...)\n");
@@ -56,6 +99,7 @@ public class LLVMVisitor implements Visitor {
     	indent--;
     	appendWithIndent("}\n");
     }
+    
 
     private void visitBinaryExpr(BinaryExpr e, String infixSymbol) {
     	e.e1().accept(this);
@@ -75,6 +119,7 @@ public class LLVMVisitor implements Visitor {
 
     @Override
     public void visit(Program program) {
+    	printVtable();
     	printStart();
         program.mainClass().accept(this);
         builder.append("\n");
@@ -86,43 +131,29 @@ public class LLVMVisitor implements Visitor {
 
     @Override
     public void visit(ClassDecl classDecl) {
+    	counter = 0;
     	curr_class = classDecl.name();
-        appendWithIndent("class ");
-        builder.append(classDecl.name());
-        if (classDecl.superName() != null) {
-            builder.append(" extends ");
-            builder.append(classDecl.superName());
-        }
-        builder.append(" {\n");
 
         indent++;
-        for (var fieldDecl : classDecl.fields()) {
-            fieldDecl.accept(this);
-            builder.append("\n");
-        }
+//        for (var fieldDecl : classDecl.fields()) {
+//            fieldDecl.accept(this);
+//            builder.append("\n");
+//        }
         for (var methodDecl : classDecl.methoddecls()) {
+        	counter = 0;
             methodDecl.accept(this);
             builder.append("\n");
         }
         indent--;
-        appendWithIndent("}\n");
     }
 
     @Override
     public void visit(MainClass mainClass) {
     	curr_class = "";
-        appendWithIndent("class ");
-        builder.append(mainClass.name());
-        builder.append(" {\n");
-        indent++;
-        appendWithIndent("public static void main(String[] ");
-        builder.append(mainClass.argsName());
-        builder.append(") {");
-        builder.append("\n");
-        indent++;
+    	builder.append("define i32 @main() {\n");
+    	indent++;
         mainClass.mainStatement().accept(this);
-        indent--;
-        appendWithIndent("}\n");
+        appendWithIndent("ret i32 0\n");
         indent--;
         appendWithIndent("}\n");
     }
@@ -181,7 +212,7 @@ public class LLVMVisitor implements Visitor {
     		formalArg.type().accept(this);
     		builder.append(" %." + formalArg.name() +", ");
     		formalArg.type().accept(this);
-    		builder.append("* " + formalArg.name() +"\n");
+    		builder.append("* %" + formalArg.name() +"\n");
     	}
         
     }
@@ -252,32 +283,47 @@ public class LLVMVisitor implements Visitor {
     @Override
     public void visit(AssignStatement assignStatement) {
     	assignStatement.rv().accept(this);
+    	String rv_val = registers_queue.pop().getVarName();
+    	String lv_val = "";
     	//store i32 %_11, i32* %num_aux	
-    	appendWithIndent("store ");
+    	
+    	String lv_type = "";
     	SymbolTable curr_symbol_table = returnCurrTable(curr_class);
-		String lv_type = "";
-		lv_type = curr_symbol_table.curr_scope.findSymbolType(assignStatement.lv(), enumKind.field);
-		if(lv_type.equals("")) {
-			// find if originalName defined in method
-	    	if(curr_symbol_table != null) {
+		if(curr_symbol_table != null) {
+			enumKind kind = enumKind.field;
+			lv_type = curr_symbol_table.curr_scope.findSymbolType(assignStatement.lv(), enumKind.field);
+			if(lv_type.equals("")) {
+				lv_type = curr_symbol_table.curr_scope.findSymbolType(assignStatement.lv(), enumKind.field_extend);
+				kind = enumKind.field_extend;
+			}
+			if(!lv_type.equals("")) {
+				//Get pointer to the byte where the field starts
+				/////////////////check if always %this//////////////////////
+				ArrayList<String> decl = new ArrayList<String>();
+				decl.add(lv_type);
+				Symb field = curr_symbol_table.curr_scope.findSymbol(assignStatement.lv(), kind, decl);
+				appendWithIndent("%_" + counter + " = getelementptr i8, i8* %this, i32 " + field.vtableindex +"\n");
+				registers_queue.add(new Entry("%_" + counter ,"i8*"));
+				counter++;
+				//Cast to a pointer to the field with the correct type
+				appendWithIndent("%_" + counter + " = bitcast i8* " + registers_queue.pop().getVarName() +" to " + typeConvertor(lv_type) + "*\n");
+				registers_queue.add(new Entry("%_" + counter , typeConvertor(lv_type) + "*"));
+				counter++;
+				lv_val = registers_queue.pop().getVarName();
+				
+			}
+			else {
+				// find if originalName defined in method
 	    		Scope curr_method_scope = curr_symbol_table.findScope(curr_method,scopeType.method);
 	    		if(curr_method_scope != null) {
-	    			lv_type = curr_method_scope.findSymbolType(assignStatement.lv(), enumKind.var);	
+	    			lv_type = curr_method_scope.findSymbolType(assignStatement.lv(), enumKind.var);
+	    			lv_val = "%" + assignStatement.lv();
 	    		}
 			}
 		}
 		String type = typeConvertor(lv_type);
-		builder.append(type+ " ");
-		if(!registers_queue.empty()) {
-			String register = registers_queue.pop().getVarName();
-			builder.append(register +", " + type+ "* ");	
-		    builder.append("%");
-		    builder.append(assignStatement.lv());
-		    builder.append("\n");
-		}
-		else {
-			System.out.println("problem in visit(AssignStatement assignStatement)");
-		}
+		appendWithIndent("store " + type+ " ");
+		builder.append(rv_val +", " + type+ "* " + lv_val + "\n");
     }
 
     @Override
@@ -416,68 +462,87 @@ public class LLVMVisitor implements Visitor {
     @Override
     public void visit(MethodCallExpr e) {
     	e.ownerExpr().accept(this);
-//		%_4 = load i8**, i8*** %_3
+    	
     	if(!registers_queue.empty()) {
+    		
+    		//required bitcasts, so that we can access the vtable pointer
+    		Entry ownerMathod = registers_queue.pop();
+        	appendWithIndent("%_"+ counter + " = bitcast i8* "+ ownerMathod.getVarName() +" to i8***\n");
+        	registers_queue.add(new Entry("%_" + counter, "i8*"));
+        	counter++;
+        	
+        	//Load vtable_ptr
     		Entry entry = registers_queue.pop();
     		appendWithIndent("%_" + counter + " = load " + entry.getType() + "*, "+ entry.getType() + "** " + entry.getVarName() + "\n");
+    		registers_queue.add(new Entry("%_" + counter, entry.getType()));
     		counter++;
     		
-//    	%_5 = getelementptr i8*, i8** %_4, i32 0
-    		appendWithIndent("%_" + counter + " = getelementptr " + entry.getType()+", " + entry.getType() +"* ");
-    		counter--;
-    		SymbolTable curr_symbol_table = returnCurrTable(curr_class);
-    		
-    	    if(curr_symbol_table != null) {
-        		String curr_method_ret = curr_symbol_table.curr_scope.findSymbolType(e.methodId(),enumKind.method);
-        		String convert_ret_type = typeConvertor(curr_method_ret);
-    	    	
-    	    	Scope curr_method_scope = curr_symbol_table.findScope(e.methodId(),scopeType.method);
-    	    	builder.append("%_" + counter + ", " + "i32 " + curr_method_scope.vtable_index + "\n");
-//    	    	%_6 = load i8*, i8** %_5
-        	    counter +=2;
-        	    appendWithIndent("%_" + counter + " = load " + entry.getType() + ", " + entry.getType() +"* ");
-        	    counter--;
-        	    builder.append("%_" + counter + "\n");
-        	    counter +=2;
-//        		%_7 = bitcast i8* %_6 to i32 (i8*, i32)*
-        	    appendWithIndent("%_" + counter + " = bitcast " + entry.getType());
-        	    registers_queue.add(new Entry("%_" + counter, entry.getType()));
-        	    counter--;
-        	    builder.append(" %_" + counter + " to "+ convert_ret_type + " (i8*");
-        	    for( Symb sym : curr_method_scope.locals.values()) {
-        	    	if(sym.kind == enumKind.arg) {
-        	    		builder.append(", ");
-        	    		String convert_arg_type = typeConvertor(sym.decl);
-        	    		builder.append(convert_arg_type);
-        	    	}
-        	    }
-        	    builder.append(")*\n");
-        	    counter +=2;
-        	    
-//        		%_8 = load i32, i32* %num
-//            	%_9 = sub i32 %_8, 1
-                String delim = "";
-                ArrayList<Entry> args= new ArrayList<Entry>();
-                for (Expr arg : e.actuals()) {
-                    builder.append(delim);
-                    arg.accept(this);
-                    delim = ", ";
-                    if(!registers_queue.empty()) {
-                    	args.add(registers_queue.pop());
-                    }
-                }
-//              %_10 = call i32 %_7(i8* %this, i32 %_9)
-        	    appendWithIndent("%_" + counter + " = call " + convert_ret_type + " " + registers_queue.pop().getVarName());
-        	    registers_queue.add(new Entry("%_" + counter, convert_ret_type));
-        	    counter++;
-        	    builder.append("(i8* %this");
-        	    for(Entry arg : args) {
-        	    	builder.append(", ");
-        	    	builder.append(arg.getType() + " " + arg.getVarName());
-        	    }
-        	    builder.append(")\n");   
+    		//%_5 = getelementptr i8*, i8** %_4, i32 0
+    		entry = registers_queue.pop();
+    		appendWithIndent("%_" + counter + " = getelementptr " + entry.getType() +", " + entry.getType() +"* "+ entry.getVarName());
+    		registers_queue.add(new Entry("%_" + counter, entry.getType()));
+    		counter++;
+    		Scope callerClassScope = returnCurrTable(callerClass).curr_scope;
+    	    if(callerClassScope != null) {
+    	    	//Get a pointer to the entry in the vtable  	
+        		Symb curr_method_symb = callerClassScope.locals.get(e.methodId());
+        		String convert_ret_type = typeConvertor(curr_method_symb.decl);
+        		builder.append(", " + "i32 " + curr_method_symb.vtableindex +"\n");
+        		
+        		//Read into the array to get the actual function pointer
+        		entry = registers_queue.pop();
+        		appendWithIndent("%_" + counter + " = load " + entry.getType() + ", " + entry.getType() +"* " + entry.getVarName() + "\n");
+        		registers_queue.add(new Entry("%_" + counter, entry.getType()));
+        		counter++;
+        		
+        		//Cast the function pointer from i8* to a function ptr type that matches the function's signature
+        		entry = registers_queue.pop();
+        		appendWithIndent("%_" + counter + " = bitcast " + entry.getType() + " " + entry.getVarName() + " to "+ convert_ret_type + " (i8*");
+        		SymbolTable extendTable = returnCurrTable(curr_method_symb.extendFrom);
+    	    	Scope curr_method_scope = extendTable.findScope(e.methodId(),scopeType.method);
+    	    	// find the args of the function
+    	    	if(curr_method_scope != null) {
+	        	    for( Symb sym : curr_method_scope.locals.values()) {
+	        	    	if(sym.kind == enumKind.arg) {
+	        	    		builder.append(", ");
+	        	    		String convert_arg_type = typeConvertor(sym.decl);
+	        	    		builder.append(convert_arg_type);
+	        	    	}
+	        	    }
+	        	    builder.append(")*\n");
+	        		registers_queue.add(new Entry("%_" + counter, entry.getType()));
+	        		counter++;
+	        	    
+	                String delim = "";
+	                ArrayList<Entry> args= new ArrayList<Entry>();
+	                for (Expr arg : e.actuals()) {
+	                    builder.append(delim);
+	                    arg.accept(this);
+	                    delim = ", ";
+	                    if(!registers_queue.empty()) {
+	                    	args.add(registers_queue.pop());
+	                    }
+	                }
+	                
+	                //Perform the call on the function pointer
+	        	    appendWithIndent("%_" + counter + " = call " + convert_ret_type + " " + registers_queue.pop().getVarName());
+	        	    registers_queue.add(new Entry("%_" + counter, convert_ret_type));
+	        	    counter++;
+	        	    builder.append("(i8* " + ownerMathod.getVarName());
+	        	    for(Entry arg : args) {
+	        	    	builder.append(", ");
+	        	    	builder.append(arg.getType() + " " + arg.getVarName());
+	        	    }
+	        	    builder.append(")\n");   
+	    	    }
+    	    	else {
+    	    		System.out.println("problem in curr_method_scope is null");
+    	    	}
+	    	}
+    	    else {
+    	    	System.out.println("problem in callerClassScope is null");
     	    }
-    	}      
+    	}
     }
 
     @Override
@@ -497,25 +562,46 @@ public class LLVMVisitor implements Visitor {
 
     @Override
     public void visit(IdentifierExpr e) {
-       //%_0 = load i32, i32* %num
-    	appendWithIndent("%_"+ counter + " = load ");
-    	
+
     	SymbolTable curr_symbol_table = returnCurrTable(curr_class);
 		String type = "";
+		String val = "";
 		if(curr_symbol_table != null) {
+			enumKind kind = enumKind.field;
 			type = curr_symbol_table.curr_scope.findSymbolType(e.id(), enumKind.field);
 			if(type.equals("")) {
+				type = curr_symbol_table.curr_scope.findSymbolType(e.id(), enumKind.field_extend);
+				kind = enumKind.field_extend;
+			}
+			if(!type.equals("")) {
+				//Get pointer to the byte where the field starts
+				/////////////////check if always %this//////////////////////
+				ArrayList<String> decl = new ArrayList<String>();
+				decl.add(type);
+				Symb field = curr_symbol_table.curr_scope.findSymbol(e.id(), kind, decl);
+				appendWithIndent("%_" + counter + " = getelementptr i8, i8* %this, i32 " + field.vtableindex +"\n");
+				registers_queue.add(new Entry("%_" + counter ,"i8*"));
+				counter++;
+				//Cast to a pointer to the field with the correct type
+				appendWithIndent("%_" + counter + " = bitcast i8* " + registers_queue.pop().getVarName() +" to " + typeConvertor(type) + "*\n");
+				registers_queue.add(new Entry("%_" + counter , typeConvertor(type) + "*"));
+				counter++;
+				val = registers_queue.pop().getVarName();
+			}
+			else {
 				// find if originalName defined in method
 		    	if(curr_symbol_table != null) {
 		    		Scope curr_method_scope = curr_symbol_table.findScope(curr_method,scopeType.method);
 		    		if(curr_method_scope != null) {
 		    			type = curr_method_scope.findSymbolType(e.id(), enumKind.var);
+		    			callerClass = type;
+		    			val = "%" + e.id();
 		    		}
 				}
 			}
 			String convert_type = typeConvertor(type);
-			builder.append(convert_type+ ", " + convert_type+ "* ");
-			builder.append("%" + e.id() + "\n");
+			appendWithIndent("%_"+ counter + " = load ");
+			builder.append(convert_type+ ", " + convert_type+ "* " + val + "\n");
 			registers_queue.add(new Entry("%_" + counter,convert_type));
 			counter++;
 		}
@@ -523,9 +609,8 @@ public class LLVMVisitor implements Visitor {
 
     @Override
     public void visit(ThisExpr e) {
-//    	%_3 = bitcast i8* %this to i8***
-    	appendWithIndent("%_"+ counter + " = bitcast i8* %this to i8***\n");
-    	registers_queue.add(new Entry("%_" + counter,"i8*"));
+    	callerClass = curr_class;
+    	registers_queue.add(new Entry("%_this","i8*"));
     	counter++;
     }
 
@@ -583,9 +668,32 @@ public class LLVMVisitor implements Visitor {
 
     @Override
     public void visit(NewObjectExpr e) {
-        builder.append("new ");
-        builder.append(e.classId());
-        builder.append("()");
+    	//allocate the required memory on heap - always 1 for object allocation
+    	Scope currScope = returnCurrTable(e.classId()).curr_scope;
+    	appendWithIndent("%_" + counter + " = call i8* @calloc(i32 1, i32 " + (8 + currScope.num_of_fields * 4) +")\n");
+    	registers_queue.add(new Entry("%_" + counter, "i8*"));
+    	counter++;
+    	
+    	//set the vtable pointer to point to the correct vtable
+    	Entry calloc_pointer = registers_queue.pop();
+    	appendWithIndent("%_" + counter + " = bitcast i8* "+ calloc_pointer.getVarName() + " to i8***\n");
+    	registers_queue.add(new Entry("%_" + counter, "i8*"));
+    	counter++;
+    	
+    	// Get the address of the first element of the vtable
+    	appendWithIndent("%_" + counter + " = getelementptr ["+ currScope.num_of_methods +" x i8*], ["+currScope.num_of_methods +" x i8*]* ");
+    	builder.append("@." + e.classId() + "_vtable, i32 0, i32 0\n");
+    	registers_queue.add(new Entry("%_" + counter, "i8*"));
+    	counter++;
+    	
+    	//Set the vtable to the correct address.
+    	Entry vtable_pointer = registers_queue.pop();
+    	appendWithIndent("store i8** "+vtable_pointer.getVarName() +", i8*** " +registers_queue.pop().getVarName() +"\n");
+    	
+    	//save the allocate address
+    	registers_queue.add(calloc_pointer);
+    	callerClass = e.classId();
+
     }
 
     @Override
@@ -612,8 +720,9 @@ public class LLVMVisitor implements Visitor {
 
     @Override
     public void visit(RefType t) {
-        builder.append(t.id());
+        builder.append("i8*");
     }
+    
     public SymbolTable returnCurrTable(String curr_class) {
 		//init variables
     	Scope curr_class_scope = null;
@@ -642,8 +751,6 @@ public class LLVMVisitor implements Visitor {
 		else if(lv_type.equals("int_array")) {
 			return "i32*"; // not sure
 		}
-    	
-		// else - what to put??
-		return "";
+		return "i8*";
     }
 }
