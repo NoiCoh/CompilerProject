@@ -14,6 +14,7 @@ public class LLVMVisitor implements Visitor {
 	String curr_method = "";
 	int formalsStep = 0;
 	int branchCounter = 0;
+	int arrAllocCounter = 0;
     
     private int indent = 0;
     
@@ -25,10 +26,35 @@ public class LLVMVisitor implements Visitor {
     public String getString() {
         return builder.toString();
     }
-
+    
     private void appendWithIndent(String str) {
         builder.append("\t".repeat(indent));
         builder.append(str);
+    }
+    
+    public void printStart() {
+    	builder.append("declare i8* @calloc(i32, i32)\n");
+    	builder.append("declare i32 @printf(i8*, ...)\n");
+    	builder.append("declare void @exit(i32)\n");
+    	builder.append("\n");
+    	builder.append("@_cint = constant [4 x i8] c\"%d\\0a\\00\"\n");
+    	builder.append("@_cOOB = constant [15 x i8] c\"Out of bounds\\0a\\00\"\n");
+    	builder.append("define void @print_int(i32 %i) {\n");
+    	indent++;
+    	appendWithIndent("%_str = bitcast [4 x i8]* @_cint to i8*\n");
+    	appendWithIndent("call i32 (i8*, ...) @printf(i8* %_str, i32 %i)\n");
+    	appendWithIndent("ret void\n");
+    	indent--;
+    	appendWithIndent("}\n");
+    	builder.append("\n");
+    	builder.append("define void @throw_oob() {\n");
+    	indent++;
+    	appendWithIndent("%_str = bitcast [15 x i8]* @_cOOB to i8*\n");
+    	appendWithIndent("call i32 (i8*, ...) @printf(i8* %_str)\n");
+    	appendWithIndent("call void @exit(i32 1)\n");
+    	appendWithIndent("ret void\n");
+    	indent--;
+    	appendWithIndent("}\n");
     }
 
     private void visitBinaryExpr(BinaryExpr e, String infixSymbol) {
@@ -38,7 +64,7 @@ public class LLVMVisitor implements Visitor {
     	Entry e1 = registers_queue.pop();
     	
     	appendWithIndent("%_" + counter +" = ");
-    	registers_queue.add(new Entry("%" + counter,"i32"));
+    	registers_queue.add(new Entry("%_" + counter,"i32"));
     	counter++;
     	
     	builder.append(infixSymbol + " i32 ");
@@ -49,6 +75,7 @@ public class LLVMVisitor implements Visitor {
 
     @Override
     public void visit(Program program) {
+    	printStart();
         program.mainClass().accept(this);
         builder.append("\n");
         for (ClassDecl classdecl : program.classDecls()) {
@@ -109,7 +136,7 @@ public class LLVMVisitor implements Visitor {
         
         builder.append(" @" + curr_class + "." + curr_method );
         builder.append("(");
-        builder.append("i8* this");
+        builder.append("i8* %this");
         String delim = ", ";
         for (var formal : methodDecl.formals()) {
             builder.append(delim);
@@ -214,9 +241,12 @@ public class LLVMVisitor implements Visitor {
 
     @Override
     public void visit(SysoutStatement sysoutStatement) {
-        appendWithIndent("System.out.println(");
         sysoutStatement.arg().accept(this);
-        builder.append(");\n");
+    	if(registers_queue.isEmpty()) {
+    		return;
+    	}
+        Entry arg = registers_queue.pop();
+        appendWithIndent("call void (i32) @print_int(i32 " + arg.getVarName() + ")\n");
     }
 
     @Override
@@ -252,14 +282,93 @@ public class LLVMVisitor implements Visitor {
 
     @Override
     public void visit(AssignArrayStatement assignArrayStatement) {
-        appendWithIndent("");
-        builder.append(assignArrayStatement.lv());
-        builder.append("[");
-        assignArrayStatement.index().accept(this);
-        builder.append("]");
-        builder.append(" = ");
+    	appendWithIndent("%_" + counter + " = load i32*, i32** %"+ assignArrayStatement.lv() +"\n");
+    	registers_queue.add(new Entry("%_" + counter ,"i32*"));
+    	counter++;
+    	//Check that the index is greater than zero
+    	assignArrayStatement.index().accept(this);
+    	Entry index = registers_queue.pop();
+    	StringBuilder arr_alloc = checkSizeArray(index.getVarName(),"0", true);
+    	builder.append(arr_alloc.toString());
+    	
+    	//Load the size of the array (first integer of the array)
+    	Entry array = registers_queue.pop();
+    	appendWithIndent("%_" + counter + " = getelementptr i32, " + array.getType() + " " + array.getVarName() +", i32 0\n");
+    	
+    	registers_queue.add(new Entry("%_" + counter ,"i32"));
+    	counter++;
+    	Entry entry = registers_queue.pop();
+
+    	appendWithIndent("%_" + counter + " = load i32, i32* " + entry.getVarName()+"\n");
+    	registers_queue.add(new Entry("%_" + counter ,"i32"));
+    	counter++;
+    	entry = registers_queue.pop();
+    	
+    	//Check that the index is less than the size of the array
+    	arr_alloc = checkSizeArray(entry.getVarName(),index.getVarName(),false);
+    	builder.append(arr_alloc.toString());
+
+    	//We'll be accessing our array at index + 1, since the first element holds the size
+    	appendWithIndent("%_" + counter + " = add i32 " +index.getVarName() +", 1\n");
+    	registers_queue.add(new Entry("%_" + counter ,"i32"));
+    	counter++;
+    	
+    	//Get pointer to the i + 1 element of the array
+    	entry = registers_queue.pop();
+    	appendWithIndent("%_" + counter + " = getelementptr i32, i32* " + array.getVarName()+", i32 " + entry.getVarName() +"\n");
+    	registers_queue.add(new Entry("%_" + counter ,"i32"));
+    	counter++;
+    	
+    	//And store 1 to that address
+    	entry = registers_queue.pop();
+    	appendWithIndent("store i32 "+ (Integer.parseInt(index.getVarName()) + 1) + ", i32* "+ entry.getVarName() +"\n");
         assignArrayStatement.rv().accept(this);
-        builder.append(";\n");
+    }
+    
+    @Override
+    public void visit(ArrayAccessExpr e) {
+    	e.arrayExpr().accept(this);
+    	
+    	//Check that the index is greater than zero
+    	e.indexExpr().accept(this);
+    	Entry index = registers_queue.pop();
+    	StringBuilder arr_alloc = checkSizeArray(index.getVarName(),"0", true);
+    	builder.append(arr_alloc.toString());
+    	
+    	//Load the size of the array (first integer of the array)
+    	Entry array = registers_queue.pop();
+  
+    	appendWithIndent("%_" + counter + " = getelementptr i32, " + array.getType() + " " + array.getVarName() +", i32 0\n");
+    	
+    	registers_queue.add(new Entry("%_" + counter ,"i32"));
+    	counter++;
+    	Entry entry = registers_queue.pop();
+
+    	appendWithIndent("%_" + counter + " = load i32, i32* " + entry.getVarName()+"\n");
+    	registers_queue.add(new Entry("%_" + counter ,"i32"));
+    	counter++;
+    	entry = registers_queue.pop();
+    	
+    	//Check that the index is less than the size of the array
+    	arr_alloc = checkSizeArray(entry.getVarName(),index.getVarName(),false);
+    	builder.append(arr_alloc.toString());
+    	
+    	//We'll be accessing our array at index + 1, since the first element holds the size
+    	appendWithIndent("%_" + counter + " = add i32 " +index.getVarName() +", 1\n");
+    	registers_queue.add(new Entry("%_" + counter ,"i32"));
+    	counter++;
+    	
+    	//Get pointer to the i + 1 element of the array
+    	entry = registers_queue.pop();
+    	appendWithIndent("%_" + counter + " = getelementptr i32, i32* " + array.getVarName()+", i32 " + entry.getVarName() +"\n");
+    	registers_queue.add(new Entry("%_" + counter ,"i32"));
+    	counter++;
+    	
+    	//Load the value
+    	entry = registers_queue.pop();
+    	appendWithIndent("%_" + counter + " = load i32, i32* " + entry.getVarName()+ "\n");
+    	registers_queue.add(new Entry("%_" + counter ,"i32"));
+    	counter++;
     }
 
     @Override
@@ -294,16 +403,6 @@ public class LLVMVisitor implements Visitor {
     @Override
     public void visit(MultExpr e) {
         visitBinaryExpr(e, "mul");
-    }
-
-    @Override
-    public void visit(ArrayAccessExpr e) {
-        builder.append("(");
-        e.arrayExpr().accept(this);
-        builder.append(")");
-        builder.append("[");
-        e.indexExpr().accept(this);
-        builder.append("]");
     }
 
     @Override
@@ -432,9 +531,54 @@ public class LLVMVisitor implements Visitor {
 
     @Override
     public void visit(NewIntArrayExpr e) {
-        builder.append("new int[");
-        e.lengthExpr().accept(this);
-        builder.append("]");
+    	e.lengthExpr().accept(this);
+    	Entry len = registers_queue.pop();
+    	
+    	//Check that the size of the array is not negative
+    	StringBuilder arr_alloc = checkSizeArray(len.getVarName(),"0" ,true);
+    	builder.append(arr_alloc.toString());
+
+//      We need an additional int worth of space, to store the size of the array.
+//      Allocate sz + 1 integers (4 bytes each)
+    	appendWithIndent("%_" + counter + " = add i32 " + len.getVarName() + ", 1\n");
+    	registers_queue.add(new Entry("%_" + counter, "i32"));
+    	counter++;
+    	Entry entry = registers_queue.pop();
+    	appendWithIndent("%_" + counter + " = call i8* @calloc(i32 4, i32 " + entry.getVarName() + ")\n");
+    	registers_queue.add(new Entry("%_" + counter, "i8*"));
+    	counter++;
+    	entry = registers_queue.pop();
+    	
+//      Cast the returned pointer
+    	appendWithIndent("%_" + counter + " = bitcast i8* " + entry.getVarName() + " to i32*\n");
+    	
+//    	Store the size of the array in the first position of the array
+    	appendWithIndent("store i32 " + len.getVarName() +", i32* %_" + counter + "\n");
+    	registers_queue.add(new Entry("%_" + counter, "i32*"));
+    	counter++;
+    }
+    
+    public StringBuilder checkSizeArray(String value1, String value2, boolean is_slt) {
+    	StringBuilder arr_alloc = new StringBuilder();
+    	if(is_slt == true) {
+    		arr_alloc.append("\t%_" + counter + " = icmp slt i32 " + value1 + ", " + value2 +"\n");
+    	}
+    	else {
+    		arr_alloc.append("\t%_" + counter + " = icmp sle i32 " + value1 + ", " + value2 +"\n");
+    	}
+    	
+    	arr_alloc.append("\tbr i1 %_" + counter + ", label %arr_alloc" + arrAllocCounter +", ");
+    	counter++;
+    	arr_alloc.append("label %arr_alloc" + (arrAllocCounter + 1) +"\n");
+    	arr_alloc.append("arr_alloc" + arrAllocCounter + ":\n");
+    	arr_alloc.append("\tcall void @throw_oob()\n");
+    	arrAllocCounter++;
+    	arr_alloc.append("\tbr label %arr_alloc" + arrAllocCounter + "\n");
+    	
+    	//All ok, we can proceed with the allocation
+    	arr_alloc.append("arr_alloc" + arrAllocCounter + ":\n");
+    	arrAllocCounter++;
+    	return arr_alloc;
     }
 
     @Override
