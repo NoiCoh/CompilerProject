@@ -15,10 +15,7 @@ public class LLVMVisitor implements Visitor {
 	String callerClass = "";
 	int formalsStep = 0;
 	int branchCounter = 0;
-	int arrAllocCounter = 0;
-	
     private int indent = 0;
-    
 
 	public LLVMVisitor(ArrayList<SymbolTable> symbol_tables) {
 		this.symbol_tables = symbol_tables;
@@ -36,41 +33,41 @@ public class LLVMVisitor implements Visitor {
     public void printVtable() {
     	for( SymbolTable symbol_table : symbol_tables) {
     		Scope curr_class = symbol_table.curr_scope;
-    		if(curr_class.type == scopeType.type_class && !(curr_class.name.equals("Main"))) {
+    		if(curr_class.type == scopeType.type_class && !(curr_class.name.equals("Main")) && curr_class.num_of_methods != 0) {
     			builder.append("@." + curr_class.name + "_vtable = global ["+ curr_class.num_of_methods + " x i8*] [");
-    			int count = curr_class.num_of_methods;
-    			if(count > 1) {
-    				builder.append("\n\t");
-    			}
+    			Symb[] orderindex = new Symb[curr_class.num_of_methods];
     			for(Map.Entry<String, Symb> entry : curr_class.locals.entrySet()) {
     				if(entry.getValue().kind == enumKind.method || entry.getValue().kind == enumKind.method_extend) {
-    					count--;
-    					String convert_ret_type = typeConvertor(entry.getValue().decl);
-    					Scope curr_method = symbol_table.findScope(entry.getKey(), scopeType.method);
-    					if(curr_method == null) {
-    						SymbolTable extendSymbolTable = returnCurrTable(entry.getValue().extendFrom);
-    						curr_method = extendSymbolTable.findScope(entry.getKey(), scopeType.method);
-    					}
-    					if(curr_method != null) {
-    						builder.append("i8* bitcast (" + convert_ret_type + " (i8*");
-    		        	    for( Symb sym : curr_method.locals.values()) {
-    		        	    	if(sym.kind == enumKind.arg) {
-    		        	    		builder.append(", ");
-    								String convert_arg_type = typeConvertor(sym.decl);
-    								builder.append(convert_arg_type);
-    		        	    	}
-    		        	    }
-    		        	    builder.append(")* @"+ entry.getValue().extendFrom + "."+ entry.getValue().name +" to i8*)");
-    			        	if(count > 0) {
-    			        		builder.append(",\n\t");
-    		    			}
-    					}
+    					orderindex[entry.getValue().vtableindex] = entry.getValue();
     				}
-    			 }
-    			 if(curr_class.num_of_methods > 1) {
-    				 builder.append("\n");
-    			 }
-    			 builder.append("]\n\n"); 
+    			}
+    			for(int i=0; i<curr_class.num_of_methods ; i++) {
+    				Symb entry = orderindex[i];
+    				String convert_ret_type = typeConvertor(entry.decl);
+    				Scope curr_method = null;
+    				if(entry.extendFrom.equals(curr_class.name)) {
+    					curr_method = symbol_table.findScope(entry.name, scopeType.method);
+    				}
+    				else {
+    					SymbolTable extendSymbolTable = returnCurrTable(entry.extendFrom);
+    					curr_method = extendSymbolTable.findScope(entry.name, scopeType.method);
+    				}
+    				if(curr_method != null) {
+						builder.append("i8* bitcast (" + convert_ret_type + " (i8*");
+		        	    for( Symb sym : curr_method.locals.values()) {
+		        	    	if(sym.kind == enumKind.arg) {
+		        	    		builder.append(", ");
+								String convert_arg_type = typeConvertor(sym.decl);
+								builder.append(convert_arg_type);
+		        	    	}
+		        	    }
+		        	    builder.append(")* @"+ entry.extendFrom + "."+ entry.name +" to i8*)");
+			        	if(i < curr_class.num_of_methods - 1) {
+			        		builder.append(", ");
+		    			}
+					}	
+    			}
+    			builder.append("]\n"); 
     		}
     	}
     }
@@ -98,6 +95,16 @@ public class LLVMVisitor implements Visitor {
     	appendWithIndent("ret void\n");
     	indent--;
     	appendWithIndent("}\n");
+    }
+    
+    private boolean isInt(String s){
+    	try{
+    		int i = Integer.parseInt(s);
+    		return true;
+    	}
+    	catch(NumberFormatException er){
+    		return false;
+    	}
     }
     
 
@@ -141,6 +148,7 @@ public class LLVMVisitor implements Visitor {
 //        }
         for (var methodDecl : classDecl.methoddecls()) {
         	counter = 0;
+        	branchCounter = 0;
             methodDecl.accept(this);
             builder.append("\n");
         }
@@ -236,38 +244,56 @@ public class LLVMVisitor implements Visitor {
 
     @Override
     public void visit(IfStatement ifStatement) {
-    	//br i1 %_1, label %if0, label %if1
+    	//Return the condition: br i1 %_1, label %if0, label %if1
         ifStatement.cond().accept(this);
         Entry e = registers_queue.pop();
-        appendWithIndent("br " + e.getType() +" " + e.getVarName() + ", label %if"+ branchCounter + ", ");
+        
+        // Init the branches' names
+        int trueBranch = branchCounter;
         branchCounter++;
-        builder.append("label %if"+ branchCounter+"\n");
-        branchCounter--;
-        builder.append("if" + branchCounter + ":\n");
+        int falseBranch = branchCounter;
         branchCounter++;
+        int afterBranch = branchCounter;
+        branchCounter++;
+        
+        // True branch
+        appendWithIndent("br " + e.getType() +" " + e.getVarName() + ", label %if"+ trueBranch + ", label %if"+ falseBranch+"\n");
+        builder.append("if" + trueBranch + ":\n");
         ifStatement.thencase().accept(this);
-        branchCounter++;
-        // br label %if2
-        appendWithIndent("br label %if" + branchCounter + "\n");
-        branchCounter--;
-        builder.append("if" + branchCounter + ":\n");
+        appendWithIndent("br label %if" + afterBranch + "\n");
+        
+        // False branch
+        builder.append("if" + falseBranch + ":\n");
         ifStatement.elsecase().accept(this);
-        branchCounter++;
-        // br label %if2
-        appendWithIndent("br label %if" + branchCounter + "\n");
-        builder.append("if" + branchCounter +":\n");
+        appendWithIndent("br label %if" + afterBranch + "\n");
+        
+        // After..
+        builder.append("if" + afterBranch +":\n");  
     }
 
     @Override
     public void visit(WhileStatement whileStatement) {
-        appendWithIndent("while (");
+    	// Init the branches' names
+        int condloop = branchCounter;
+        branchCounter++;
+        int trueloop = branchCounter;
+        branchCounter++;
+        int falseloop = branchCounter;
+        branchCounter++;
+        
+    	// Cond loop
+        appendWithIndent("br label %loop" + condloop +"\n");
+        appendWithIndent("loop" + condloop +":\n");
         whileStatement.cond().accept(this);
-        builder.append(") {");
-        indent++;
+        appendWithIndent("br i1 " + registers_queue.pop().getVarName() + ", label %loop" + trueloop +", label %loop" + falseloop + "\n");
+
+        // True loop
+        appendWithIndent("loop" + trueloop +":\n");
         whileStatement.body().accept(this);
-        indent--;
-        builder.append("\n");
-        appendWithIndent("}\n");
+        appendWithIndent("br label %loop"+ condloop +"\n");
+        
+        // False loop
+        appendWithIndent("loop" + falseloop +":\n");
     }
 
     @Override
@@ -283,63 +309,75 @@ public class LLVMVisitor implements Visitor {
     @Override
     public void visit(AssignStatement assignStatement) {
     	assignStatement.rv().accept(this);
-    	String rv_val = registers_queue.pop().getVarName();
-    	String lv_val = "";
-    	//store i32 %_11, i32* %num_aux	
-    	
+    	if(!registers_queue.empty()) {
+	    	String rv_val = registers_queue.pop().getVarName();
+	    	assignFieldOrVar(assignStatement.lv());
+	    	Entry lv_val = registers_queue.pop();
+			String type = lv_val.getType();
+			appendWithIndent("store " + type+ " " + rv_val +", " + type + "* " + lv_val.getVarName() + "\n");
+    	}
+    	else {
+    		System.out.println("problem in AssignStatement registers_queue is empty");
+    	}
+    }
+    
+    private void assignFieldOrVar(String var) {
     	String lv_type = "";
     	SymbolTable curr_symbol_table = returnCurrTable(curr_class);
-		if(curr_symbol_table != null) {
-			enumKind kind = enumKind.field;
-			lv_type = curr_symbol_table.curr_scope.findSymbolType(assignStatement.lv(), enumKind.field);
-			if(lv_type.equals("")) {
-				lv_type = curr_symbol_table.curr_scope.findSymbolType(assignStatement.lv(), enumKind.field_extend);
-				kind = enumKind.field_extend;
-			}
-			if(!lv_type.equals("")) {
-				//Get pointer to the byte where the field starts
-				/////////////////check if always %this//////////////////////
-				ArrayList<String> decl = new ArrayList<String>();
-				decl.add(lv_type);
-				Symb field = curr_symbol_table.curr_scope.findSymbol(assignStatement.lv(), kind, decl);
-				appendWithIndent("%_" + counter + " = getelementptr i8, i8* %this, i32 " + field.vtableindex +"\n");
-				registers_queue.add(new Entry("%_" + counter ,"i8*"));
-				counter++;
-				//Cast to a pointer to the field with the correct type
-				appendWithIndent("%_" + counter + " = bitcast i8* " + registers_queue.pop().getVarName() +" to " + typeConvertor(lv_type) + "*\n");
-				registers_queue.add(new Entry("%_" + counter , typeConvertor(lv_type) + "*"));
-				counter++;
-				lv_val = registers_queue.pop().getVarName();
-				
-			}
-			else {
+    	if(curr_symbol_table != null) {
+    		enumKind kind = enumKind.field;
+    		lv_type = curr_symbol_table.curr_scope.findSymbolType(var, enumKind.field);
+    		if(lv_type.equals("")) {
+    			lv_type = curr_symbol_table.curr_scope.findSymbolType(var,enumKind.field_extend);
+    			kind = enumKind.field_extend;
+    		}
+    		if(!lv_type.equals("")) {
+    			//Get pointer to the byte where the field starts
+    			/////////////////check if always %this//////////////////////
+    			ArrayList<String> decl = new ArrayList<String>();
+    			decl.add(lv_type);
+    			Symb field = curr_symbol_table.curr_scope.findSymbol(var, kind, decl);
+    			appendWithIndent("%_" + counter + " = getelementptr i8, i8* %this, i32 " + field.vtableindex +"\n");
+    			registers_queue.add(new Entry("%_" + counter ,"i8*"));
+    			counter++;
+    			//Cast to a pointer to the field with the correct type
+    			appendWithIndent("%_" + counter + " = bitcast i8* " + registers_queue.pop().getVarName() +" to " + typeConvertor(lv_type) + "*\n");
+    			registers_queue.add(new Entry("%_" + counter , typeConvertor(lv_type)));
+    			counter++;
+    		}
+    		else {
 				// find if originalName defined in method
 	    		Scope curr_method_scope = curr_symbol_table.findScope(curr_method,scopeType.method);
 	    		if(curr_method_scope != null) {
-	    			lv_type = curr_method_scope.findSymbolType(assignStatement.lv(), enumKind.var);
-	    			lv_val = "%" + assignStatement.lv();
+	    			lv_type = curr_method_scope.findSymbolType(var, enumKind.var);
+	    			registers_queue.add(new Entry("%" +var, typeConvertor(lv_type)));
 	    		}
 			}
-		}
-		String type = typeConvertor(lv_type);
-		appendWithIndent("store " + type+ " ");
-		builder.append(rv_val +", " + type+ "* " + lv_val + "\n");
+    	}			
     }
 
     @Override
     public void visit(AssignArrayStatement assignArrayStatement) {
-    	appendWithIndent("%_" + counter + " = load i32*, i32** %"+ assignArrayStatement.lv() +"\n");
-    	registers_queue.add(new Entry("%_" + counter ,"i32*"));
+    	assignFieldOrVar(assignArrayStatement.lv());
+    	Entry lv_val = registers_queue.pop();
+    	appendWithIndent("%_" + counter + " = load i32*, i32** "+ lv_val.getVarName() +"\n");
+    	registers_queue.add(new Entry("%_" + counter ,"i32"));
     	counter++;
+    	
+    	Entry array = registers_queue.pop();
+    	
     	//Check that the index is greater than zero
     	assignArrayStatement.index().accept(this);
-    	Entry index = registers_queue.pop();
-    	StringBuilder arr_alloc = checkSizeArray(index.getVarName(),"0", true);
+    	String index = registers_queue.pop().getVarName();
+    	
+    	assignArrayStatement.rv().accept(this);
+    	Entry rv_val = registers_queue.pop();
+    	
+    	StringBuilder arr_alloc = checkSizeArray(index,"0", true);
     	builder.append(arr_alloc.toString());
     	
     	//Load the size of the array (first integer of the array)
-    	Entry array = registers_queue.pop();
-    	appendWithIndent("%_" + counter + " = getelementptr i32, " + array.getType() + " " + array.getVarName() +", i32 0\n");
+    	appendWithIndent("%_" + counter + " = getelementptr " + array.getType() + ", " + array.getType() + "* " + array.getVarName() +" , i32 0\n");
     	
     	registers_queue.add(new Entry("%_" + counter ,"i32"));
     	counter++;
@@ -351,24 +389,24 @@ public class LLVMVisitor implements Visitor {
     	entry = registers_queue.pop();
     	
     	//Check that the index is less than the size of the array
-    	arr_alloc = checkSizeArray(entry.getVarName(),index.getVarName(),false);
+    	arr_alloc = checkSizeArray(entry.getVarName(),index,false);
     	builder.append(arr_alloc.toString());
 
     	//We'll be accessing our array at index + 1, since the first element holds the size
-    	appendWithIndent("%_" + counter + " = add i32 " +index.getVarName() +", 1\n");
-    	registers_queue.add(new Entry("%_" + counter ,"i32"));
-    	counter++;
-    	
-    	//Get pointer to the i + 1 element of the array
+		appendWithIndent("%_" + counter + " = add i32 " +index +", 1\n");
+		registers_queue.add(new Entry("%_" + counter ,"i32"));
+		counter++;
+	
+		//Get pointer to the i + 1 element of the array
+		entry = registers_queue.pop();
+		appendWithIndent("%_" + counter + " = getelementptr i32, i32* " + array.getVarName()+", i32 " + entry.getVarName() +"\n");
+		registers_queue.add(new Entry("%_" + counter ,"i32"));
+		counter++;
+		
     	entry = registers_queue.pop();
-    	appendWithIndent("%_" + counter + " = getelementptr i32, i32* " + array.getVarName()+", i32 " + entry.getVarName() +"\n");
-    	registers_queue.add(new Entry("%_" + counter ,"i32"));
-    	counter++;
-    	
-    	//And store 1 to that address
-    	entry = registers_queue.pop();
-    	appendWithIndent("store i32 "+ (Integer.parseInt(index.getVarName()) + 1) + ", i32* "+ entry.getVarName() +"\n");
-        assignArrayStatement.rv().accept(this);
+    	appendWithIndent("store i32 "+ rv_val.getVarName() + ", i32* "+ entry.getVarName() +"\n");
+
+    	//assignArrayStatement.rv().accept(this);
     }
     
     @Override
@@ -384,7 +422,7 @@ public class LLVMVisitor implements Visitor {
     	//Load the size of the array (first integer of the array)
     	Entry array = registers_queue.pop();
   
-    	appendWithIndent("%_" + counter + " = getelementptr i32, " + array.getType() + " " + array.getVarName() +", i32 0\n");
+    	appendWithIndent("%_" + counter + " = getelementptr i32, i32* " + array.getVarName() +", i32 0\n");
     	
     	registers_queue.add(new Entry("%_" + counter ,"i32"));
     	counter++;
@@ -419,17 +457,44 @@ public class LLVMVisitor implements Visitor {
 
     @Override
     public void visit(AndExpr e) {
-        visitBinaryExpr(e, "and");
+    	
+        int andBranch = branchCounter;
+        branchCounter++;
+        int e2_check = branchCounter;
+        branchCounter++;
+        int after_e2_check = branchCounter;
+        branchCounter++;
+        int ending_branch = branchCounter;
+        branchCounter++;
+        
+        e.e1().accept(this);
+        Entry e1 = registers_queue.pop();
+        appendWithIndent("br label %andcond" + andBranch + "\n");
+        builder.append("andcond" + andBranch + ":\n");
+        appendWithIndent("br i1 " + e1.getVarName() +", label %andcond" + e2_check +", label %andcond" + ending_branch +"\n");
+        
+        builder.append("andcond" + e2_check + ":\n");
+        e.e2().accept(this);
+        Entry e2 = registers_queue.pop();
+        appendWithIndent("br label %andcond" + after_e2_check + "\n");
+        
+        builder.append("andcond" + after_e2_check + ":\n");
+        appendWithIndent("br label %andcond" + ending_branch + "\n");
+        
+        builder.append("andcond" + ending_branch + ":\n");
+        appendWithIndent("%_" + counter + " = phi i1 [0 , %andcond" +andBranch + "], ["+ e2.getVarName() + ", %andcond" + after_e2_check +"]\n");
+        registers_queue.add(new Entry("%_" + counter ,"i1"));
+        counter++;
     }
     
     @Override
-    public void visit(LtExpr e) { // %_1 = icmp slt i32 %_0, 1
+    public void visit(LtExpr e) { // %_1 = icmp slt i32 %_0, 1 
         e.e1().accept(this);
         e.e2().accept(this);
         appendWithIndent("%_" + counter + " = " + "icmp slt ");
         if(registers_queue.size() >= 2) {
-        	Entry e1 = registers_queue.pop();
         	Entry e2 = registers_queue.pop();
+        	Entry e1 = registers_queue.pop();
         	builder.append(e1.getType() + " " + e1.getVarName() +", " + e2.getVarName() +"\n");
         	registers_queue.add(new Entry("%_" + counter,"i1"));
         	counter++;
@@ -453,10 +518,13 @@ public class LLVMVisitor implements Visitor {
 
     @Override
     public void visit(ArrayLengthExpr e) {
-        builder.append("(");
         e.arrayExpr().accept(this);
-        builder.append(")");
-        builder.append(".length");
+        Entry arrayExpr = registers_queue.pop();
+    	appendWithIndent("%_"+ counter + " = load i32, i32* "+ arrayExpr.getVarName() + "\n");
+    	registers_queue.add(new Entry("%_" + counter, "i32"));
+    	counter++;
+
+    	
     }
 
     @Override
@@ -513,27 +581,29 @@ public class LLVMVisitor implements Visitor {
 	        		registers_queue.add(new Entry("%_" + counter, entry.getType()));
 	        		counter++;
 	        	    
-	                String delim = "";
-	                ArrayList<Entry> args= new ArrayList<Entry>();
+	                ArrayList<Entry> args = new ArrayList<Entry>();
 	                for (Expr arg : e.actuals()) {
-	                    builder.append(delim);
 	                    arg.accept(this);
-	                    delim = ", ";
 	                    if(!registers_queue.empty()) {
 	                    	args.add(registers_queue.pop());
 	                    }
 	                }
 	                
 	                //Perform the call on the function pointer
-	        	    appendWithIndent("%_" + counter + " = call " + convert_ret_type + " " + registers_queue.pop().getVarName());
-	        	    registers_queue.add(new Entry("%_" + counter, convert_ret_type));
-	        	    counter++;
-	        	    builder.append("(i8* " + ownerMathod.getVarName());
-	        	    for(Entry arg : args) {
-	        	    	builder.append(", ");
-	        	    	builder.append(arg.getType() + " " + arg.getVarName());
-	        	    }
-	        	    builder.append(")\n");   
+	                if(!registers_queue.empty()) {
+		        	    appendWithIndent("%_" + counter + " = call " + convert_ret_type + " " + registers_queue.pop().getVarName());
+		        	    registers_queue.add(new Entry("%_" + counter, convert_ret_type));
+		        	    counter++;
+		        	    builder.append("(i8* " + ownerMathod.getVarName());
+		        	    for(Entry arg : args) {
+		        	    	builder.append(", ");
+		        	    	builder.append(arg.getType() + " " + arg.getVarName());
+		        	    }
+		        	    builder.append(")\n");
+	                }
+	                else {
+	                	System.out.println("problem in registers_queue is empty");
+	                }
 	    	    }
     	    	else {
     	    		System.out.println("problem in curr_method_scope is null");
@@ -552,12 +622,12 @@ public class LLVMVisitor implements Visitor {
 
     @Override
     public void visit(TrueExpr e) {
-        builder.append("true");
+    	registers_queue.add(new Entry("1","i1"));
     }
 
     @Override
     public void visit(FalseExpr e) {
-        builder.append("false");
+    	registers_queue.add(new Entry("0","i1"));
     }
 
     @Override
@@ -610,8 +680,7 @@ public class LLVMVisitor implements Visitor {
     @Override
     public void visit(ThisExpr e) {
     	callerClass = curr_class;
-    	registers_queue.add(new Entry("%_this","i8*"));
-    	counter++;
+    	registers_queue.add(new Entry("%this","i8*"));
     }
 
     @Override
@@ -623,8 +692,8 @@ public class LLVMVisitor implements Visitor {
     	StringBuilder arr_alloc = checkSizeArray(len.getVarName(),"0" ,true);
     	builder.append(arr_alloc.toString());
 
-//      We need an additional int worth of space, to store the size of the array.
-//      Allocate sz + 1 integers (4 bytes each)
+		//We need an additional int worth of space, to store the size of the array.
+		//Allocate sz + 1 integers (4 bytes each)
     	appendWithIndent("%_" + counter + " = add i32 " + len.getVarName() + ", 1\n");
     	registers_queue.add(new Entry("%_" + counter, "i32"));
     	counter++;
@@ -634,10 +703,10 @@ public class LLVMVisitor implements Visitor {
     	counter++;
     	entry = registers_queue.pop();
     	
-//      Cast the returned pointer
+    	//Cast the returned pointer
     	appendWithIndent("%_" + counter + " = bitcast i8* " + entry.getVarName() + " to i32*\n");
     	
-//    	Store the size of the array in the first position of the array
+    	//Store the size of the array in the first position of the array
     	appendWithIndent("store i32 " + len.getVarName() +", i32* %_" + counter + "\n");
     	registers_queue.add(new Entry("%_" + counter, "i32*"));
     	counter++;
@@ -652,17 +721,17 @@ public class LLVMVisitor implements Visitor {
     		arr_alloc.append("\t%_" + counter + " = icmp sle i32 " + value1 + ", " + value2 +"\n");
     	}
     	
-    	arr_alloc.append("\tbr i1 %_" + counter + ", label %arr_alloc" + arrAllocCounter +", ");
+    	arr_alloc.append("\tbr i1 %_" + counter + ", label %arr_alloc" + branchCounter +", ");
     	counter++;
-    	arr_alloc.append("label %arr_alloc" + (arrAllocCounter + 1) +"\n");
-    	arr_alloc.append("arr_alloc" + arrAllocCounter + ":\n");
+    	arr_alloc.append("label %arr_alloc" + (branchCounter + 1) +"\n");
+    	arr_alloc.append("arr_alloc" + branchCounter + ":\n");
     	arr_alloc.append("\tcall void @throw_oob()\n");
-    	arrAllocCounter++;
-    	arr_alloc.append("\tbr label %arr_alloc" + arrAllocCounter + "\n");
+    	branchCounter++;
+    	arr_alloc.append("\tbr label %arr_alloc" + branchCounter + "\n");
     	
     	//All ok, we can proceed with the allocation
-    	arr_alloc.append("arr_alloc" + arrAllocCounter + ":\n");
-    	arrAllocCounter++;
+    	arr_alloc.append("arr_alloc" + branchCounter + ":\n");
+    	branchCounter++;
     	return arr_alloc;
     }
 
@@ -670,7 +739,7 @@ public class LLVMVisitor implements Visitor {
     public void visit(NewObjectExpr e) {
     	//allocate the required memory on heap - always 1 for object allocation
     	Scope currScope = returnCurrTable(e.classId()).curr_scope;
-    	appendWithIndent("%_" + counter + " = call i8* @calloc(i32 1, i32 " + (8 + currScope.num_of_fields * 4) +")\n");
+    	appendWithIndent("%_" + counter + " = call i8* @calloc(i32 1, i32 " + currScope.size_of_object +")\n");
     	registers_queue.add(new Entry("%_" + counter, "i8*"));
     	counter++;
     	
@@ -693,14 +762,14 @@ public class LLVMVisitor implements Visitor {
     	//save the allocate address
     	registers_queue.add(calloc_pointer);
     	callerClass = e.classId();
-
     }
 
     @Override
     public void visit(NotExpr e) {
-        builder.append("!(");
         e.e().accept(this);
-        builder.append(")");
+        appendWithIndent("%_" + counter + " = sub i1 1, " +registers_queue.pop().getVarName() + "\n");
+        registers_queue.add(new Entry("%_" + counter, "i1"));
+        counter++;
     }
 
     @Override
@@ -724,7 +793,7 @@ public class LLVMVisitor implements Visitor {
     }
     
     public SymbolTable returnCurrTable(String curr_class) {
-		//init variables
+		// init variables
     	Scope curr_class_scope = null;
     	SymbolTable curr_symbol_table = null;
     	
@@ -741,16 +810,15 @@ public class LLVMVisitor implements Visitor {
     
     public String typeConvertor(String lv_type) {
     	if(lv_type.equals("int")) {
-			return "i32";
-			
+			return "i32";	
 		}
 		else if(lv_type.equals("bool")) {
-			return "i1";
-			
+			return "i1";	
 		}
 		else if(lv_type.equals("int_array")) {
-			return "i32*"; // not sure
+			return "i32*";
 		}
 		return "i8*";
     }
+    
 }

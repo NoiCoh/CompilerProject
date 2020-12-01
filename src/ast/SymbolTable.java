@@ -143,8 +143,7 @@ public class SymbolTable {
 		public ArrayList<Scope> next = new ArrayList<Scope>();
 		public scopeType type;
 		public String name;
-		public int frame_size, level, num_of_methods,  num_of_fields;
-
+		public int frame_size, level, num_of_methods,  num_of_fields, size_of_object;
 		public HashMap<String, Symb> locals = new HashMap<String, Symb>(); // to locally declared objects
 
 
@@ -162,6 +161,9 @@ public class SymbolTable {
 		}
 		public void setNumOfFields(int num) {
 			this.num_of_fields = num;
+		}
+		public void setSizeOfObject(int num) {
+			this.size_of_object = num;
 		}
 
 		public void printLocals() {

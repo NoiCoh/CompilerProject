@@ -29,7 +29,7 @@ public class CreateSymbolTable implements Visitor {
     @Override
     public void visit(ClassDecl classDecl) {
     	method_vtable_index = 0;
-    	fields_vtable_index = 8;
+    	fields_vtable_index = 0;
         SymbolTable symbol_table = new SymbolTable();
         symbol_tables.add(symbol_table);
         curr_symbol_table = symbol_table;
@@ -52,11 +52,6 @@ public class CreateSymbolTable implements Visitor {
 	        }
         	//System.out.println("Super :"+ classDecl.superName());
         }
-        for (var fieldDecl : classDecl.fields()) {
-        	curr_kind = enumKind.field;
-            fieldDecl.accept(this);
-            fields_vtable_index+= 4;
-        }
 
         for (var methodDecl : classDecl.methoddecls()) {
         	methodDecl.accept(this);
@@ -77,15 +72,23 @@ public class CreateSymbolTable implements Visitor {
 				}
 				if(entry.getValue().kind == enumKind.field || entry.getValue().kind == enumKind.field_extend) {
 					if(!curr_symbol_table.curr_scope.locals.keySet().contains(entry.getKey())) {
-		        		curr_symbol_table.addSymbol(entry.getKey(),entry.getValue().decl ,enumKind.field_extend, entry.getValue().extendFrom,fields_vtable_index);
+		        		curr_symbol_table.addSymbol(entry.getKey(),entry.getValue().decl ,enumKind.field_extend, entry.getValue().extendFrom,entry.getValue().vtableindex);
 		        		numOfFields++;
-		        		fields_vtable_index+= 4;
+		        		fields_vtable_index +=entry.getValue().vtableindex;
 		        	}
 				}
 			}
         }
+        if(fields_vtable_index == 0 && numOfMethod > 0) {
+        	fields_vtable_index = 8;
+        }
+        for (var fieldDecl : classDecl.fields()) {
+        	curr_kind = enumKind.field;
+            fieldDecl.accept(this);
+        }
         curr_symbol_table.curr_scope.setNumOfFields(numOfFields);
         curr_symbol_table.curr_scope.setNumOfMethods(numOfMethod);
+        curr_symbol_table.curr_scope.setSizeOfObject(fields_vtable_index);
     }
 
     @Override
@@ -257,6 +260,7 @@ public class CreateSymbolTable implements Visitor {
     	}
     	else if(curr_kind==enumKind.field) {
     		vtable_index = fields_vtable_index;
+    		fields_vtable_index+= 4;
     	}
     	curr_symbol_table.addSymbol(curr_name, "int", curr_kind, curr_symbol_table.curr_scope.name,vtable_index);
     	curr_name = "";
@@ -274,6 +278,7 @@ public class CreateSymbolTable implements Visitor {
     	}
     	else if(curr_kind==enumKind.field) {
     		vtable_index = fields_vtable_index;
+    		fields_vtable_index+= 1;
     	}
     	curr_symbol_table.addSymbol(curr_name, "bool", curr_kind, curr_symbol_table.curr_scope.name,vtable_index);
     	curr_name = "";
@@ -291,6 +296,7 @@ public class CreateSymbolTable implements Visitor {
     	}
     	else if(curr_kind==enumKind.field) {
     		vtable_index = fields_vtable_index;
+    		fields_vtable_index+= 8;
     	}
     	curr_symbol_table.addSymbol(curr_name, "int_array", curr_kind,curr_symbol_table.curr_scope.name,vtable_index);
     	curr_name = "";
@@ -308,6 +314,7 @@ public class CreateSymbolTable implements Visitor {
     	}
     	else if(curr_kind==enumKind.field) {
     		vtable_index = fields_vtable_index;
+    		fields_vtable_index+= 8;
     	}
     	curr_symbol_table.addSymbol(curr_name, t.id(), curr_kind, curr_symbol_table.curr_scope.name,vtable_index);
     	curr_name = "";
