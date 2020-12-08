@@ -14,10 +14,16 @@ enum scopeType {
 public class SymbolTable {
 	int curr_level; // nesting level of current scope
 	public Scope curr_scope; // topmost procedure scope
-
+	ArrayList<enumKind> methodsKind = new ArrayList<enumKind>();
+	ArrayList<enumKind> fieldsKind = new ArrayList<enumKind>();
+	
 	public SymbolTable() {
 		this.curr_scope = null; // new Scope();
 		this.curr_level = 0;
+		this.methodsKind.add(enumKind.method_extend);
+		this.methodsKind.add(enumKind.method);
+		this.fieldsKind.add(enumKind.field);
+		this.fieldsKind.add(enumKind.field_extend);
 
 	}
 
@@ -92,8 +98,10 @@ public class SymbolTable {
 
 	public Symb addSymbol(String name, String decl, enumKind kind, String extendFrom, int vtableindex) {
 		Symb new_method = new Symb(name, decl, kind,extendFrom, vtableindex);
-		this.curr_scope.addSymbol(new_method);
-		return new_method;
+		if(this.curr_scope.addSymbol(new_method)) {
+			return new_method;
+		}
+		return null;
 	}
 
 	// search the name in all open scopes and return its object node
@@ -128,9 +136,16 @@ public class SymbolTable {
 
 		public boolean compareSymbol(Symb otherSymbol) {
 			if (otherSymbol.name.equals(this.name)) {
-				if (otherSymbol.kind.equals(this.kind)) {
-					if (otherSymbol.decl.equals(this.decl)) {
-						return true;
+				if (otherSymbol.decl.equals(this.decl)) {
+					if(this.kind == enumKind.method || this.kind == enumKind.method_extend) {
+						if (otherSymbol.kind.equals(enumKind.method_extend) || otherSymbol.kind.equals(enumKind.method)) {
+							return true;
+						}
+					}
+					else if(this.kind == enumKind.field || this.kind == enumKind.field_extend) {
+						if (otherSymbol.kind.equals(enumKind.field) || otherSymbol.kind.equals(enumKind.field_extend)) {
+							return true;
+						}
 					}
 				}
 			}
@@ -144,7 +159,9 @@ public class SymbolTable {
 		public scopeType type;
 		public String name;
 		public int frame_size, level, num_of_methods,  num_of_fields, size_of_object;
-		public HashMap<String, Symb> locals = new HashMap<String, Symb>(); // to locally declared objects
+		public ArrayList<Symb> locals = new ArrayList<Symb>(); // to locally declared objects
+		ArrayList<enumKind> methodsKind = new ArrayList<enumKind>();
+		ArrayList<enumKind> fieldsKind = new ArrayList<enumKind>();
 
 
 		public Scope(int level, scopeType type, String name) {
@@ -154,6 +171,10 @@ public class SymbolTable {
 			this.name = name;
 			this.num_of_methods = 0;
 			this.num_of_fields = 0;
+			this.methodsKind.add(enumKind.method_extend);
+			this.methodsKind.add(enumKind.method);
+			this.fieldsKind.add(enumKind.field);
+			this.fieldsKind.add(enumKind.field_extend);
 		}
 		
 		public void setNumOfMethods(int num) {
@@ -167,29 +188,29 @@ public class SymbolTable {
 		}
 
 		public void printLocals() {
-			for (Map.Entry<String, Symb> symbol_entry : this.locals.entrySet()) {
-				String name = symbol_entry.getKey();
-				Symb var = symbol_entry.getValue();
-				System.out.println(name + " : " + var.kind.toString() + " : " + var.decl+ " : " + var.extendFrom +" : " + var.vtableindex);
+			for (Symb symbol_entry : this.locals) {
+				String name = symbol_entry.name;
+				System.out.println(name + " : " + symbol_entry.kind.toString() + " : " + symbol_entry.decl+ " : " + symbol_entry.extendFrom +" : " + symbol_entry.vtableindex);
 			}
 		}
 
-		public void addSymbol(Symb sy) {
-			for (Symb otherSymbol : this.locals.values()) {
+		public boolean addSymbol(Symb sy) {
+			for (Symb otherSymbol : this.locals) {
 				if (sy.compareSymbol(otherSymbol)) {
-					return;
+					return false;
 				}
 			}
-			this.locals.put(sy.name, sy);
+			this.locals.add(sy);
+			return true;
 		}
+		
 		public String findSymbolType(String name, enumKind kind) {
-			for (Map.Entry<String, Symb> symbol_entry : this.locals.entrySet()) {
-				String symbol_name = symbol_entry.getKey();
-				Symb symbol_value = symbol_entry.getValue();
-				enumKind symbol_kind = symbol_value.kind;
+			for (Symb symbol_entry : this.locals) {
+				String symbol_name = symbol_entry.name;
+				enumKind symbol_kind = symbol_entry.kind;
 				if (0 == name.compareTo(symbol_name)) {
 					if (symbol_kind.equals(kind)) {
-						return symbol_value.decl;
+						return symbol_entry.decl;
 					}
 				}
 			}
@@ -197,16 +218,30 @@ public class SymbolTable {
 		}
 
 		public Symb findSymbol(String name, enumKind kind, ArrayList<String> decls) {
-			for (Map.Entry<String, Symb> symbol_entry : this.locals.entrySet()) {
-				String symbol_name = symbol_entry.getKey();
-				Symb symbol_value = symbol_entry.getValue();
-				enumKind symbol_kind = symbol_value.kind;
-				String symbol_decl = symbol_value.decl;
+			for (Symb symbol_entry : this.locals) {
+				String symbol_name = symbol_entry.name;
+				enumKind symbol_kind = symbol_entry.kind;
+				String symbol_decl = symbol_entry.decl;
 				if (0 == name.compareTo(symbol_name)) {
-					if (symbol_kind.equals(kind)) {
-						if (decls.contains(symbol_decl)) {
-							return symbol_value;
+					if (decls.contains(symbol_decl)) {
+						if (this.methodsKind.contains(kind) && this.methodsKind.contains(symbol_kind)) {
+							return symbol_entry;
 						}
+						else if(this.fieldsKind.contains(kind) && this.fieldsKind.contains(symbol_kind)) {
+							return symbol_entry;
+						}
+					}
+				}
+			}
+			return null;
+		}
+		public Symb findSymbol(String name, ArrayList<enumKind> kind) {
+			for (Symb symbol_entry : this.locals) {
+				String symbol_name = symbol_entry.name;
+				enumKind symbol_kind = symbol_entry.kind;
+				if (0 == name.compareTo(symbol_name)) {
+					if (kind.contains(symbol_kind)) {
+						return symbol_entry;
 					}
 				}
 			}

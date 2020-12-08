@@ -60,22 +60,20 @@ public class CreateSymbolTable implements Visitor {
         int numOfFields= classDecl.fields().size();
         int numOfMethod = classDecl.methoddecls().size();
         if (super_scope!=null) {
-	        for(Map.Entry<String, Symb> entry :super_scope.locals.entrySet()) {
+	        for(Symb entry :super_scope.locals) {
 	        	ArrayList<String> decl = new ArrayList<String>();
-				decl.add(entry.getValue().decl);
-				if(entry.getValue().kind == enumKind.method || entry.getValue().kind == enumKind.method_extend) {
-					if(!curr_symbol_table.curr_scope.locals.keySet().contains(entry.getKey())) {
-		        		curr_symbol_table.addSymbol(entry.getKey(),entry.getValue().decl ,enumKind.method_extend, entry.getValue().extendFrom,method_vtable_index);
-		        		numOfMethod++;
+				decl.add(entry.decl);
+				if(entry.kind == enumKind.method || entry.kind == enumKind.method_extend) {
+	        		if(null != curr_symbol_table.addSymbol(entry.name,entry.decl ,enumKind.method_extend, entry.extendFrom, method_vtable_index)) {
+	        			numOfMethod++;
 		        		method_vtable_index++;
-		        	}
+	        		}	
 				}
-				if(entry.getValue().kind == enumKind.field || entry.getValue().kind == enumKind.field_extend) {
-					if(!curr_symbol_table.curr_scope.locals.keySet().contains(entry.getKey())) {
-		        		curr_symbol_table.addSymbol(entry.getKey(),entry.getValue().decl ,enumKind.field_extend, entry.getValue().extendFrom,entry.getValue().vtableindex);
-		        		numOfFields++;
-		        		fields_vtable_index +=entry.getValue().vtableindex;
-		        	}
+				if(entry.kind == enumKind.field || entry.kind == enumKind.field_extend) {
+					if(null != curr_symbol_table.addSymbol(entry.name,entry.decl ,enumKind.field_extend, entry.extendFrom,entry.vtableindex)) {
+						numOfFields++;
+		        		fields_vtable_index +=entry.vtableindex;
+					}	
 				}
 			}
         }

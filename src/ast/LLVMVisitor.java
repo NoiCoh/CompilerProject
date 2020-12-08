@@ -36,9 +36,9 @@ public class LLVMVisitor implements Visitor {
     		if(curr_class.type == scopeType.type_class && !(curr_class.name.equals("Main")) && curr_class.num_of_methods != 0) {
     			builder.append("@." + curr_class.name + "_vtable = global ["+ curr_class.num_of_methods + " x i8*] [");
     			Symb[] orderindex = new Symb[curr_class.num_of_methods];
-    			for(Map.Entry<String, Symb> entry : curr_class.locals.entrySet()) {
-    				if(entry.getValue().kind == enumKind.method || entry.getValue().kind == enumKind.method_extend) {
-    					orderindex[entry.getValue().vtableindex] = entry.getValue();
+    			for(Symb entry : curr_class.locals) {
+    				if(entry.kind == enumKind.method || entry.kind == enumKind.method_extend) {
+    					orderindex[entry.vtableindex] = entry;
     				}
     			}
     			for(int i=0; i<curr_class.num_of_methods ; i++) {
@@ -54,7 +54,7 @@ public class LLVMVisitor implements Visitor {
     				}
     				if(curr_method != null) {
 						builder.append("i8* bitcast (" + convert_ret_type + " (i8*");
-		        	    for( Symb sym : curr_method.locals.values()) {
+		        	    for( Symb sym : curr_method.locals) {
 		        	    	if(sym.kind == enumKind.arg) {
 		        	    		builder.append(", ");
 								String convert_arg_type = typeConvertor(sym.decl);
@@ -358,6 +358,7 @@ public class LLVMVisitor implements Visitor {
 
     @Override
     public void visit(AssignArrayStatement assignArrayStatement) {
+    	// lv handling
     	assignFieldOrVar(assignArrayStatement.lv());
     	Entry lv_val = registers_queue.pop();
     	appendWithIndent("%_" + counter + " = load i32*, i32** "+ lv_val.getVarName() +"\n");
@@ -366,13 +367,15 @@ public class LLVMVisitor implements Visitor {
     	
     	Entry array = registers_queue.pop();
     	
-    	//Check that the index is greater than zero
+    	//index handling
     	assignArrayStatement.index().accept(this);
     	String index = registers_queue.pop().getVarName();
     	
+    	// rv handling
     	assignArrayStatement.rv().accept(this);
     	Entry rv_val = registers_queue.pop();
     	
+    	//Check that the index is greater than zero
     	StringBuilder arr_alloc = checkSizeArray(index,"0", true);
     	builder.append(arr_alloc.toString());
     	
@@ -552,8 +555,11 @@ public class LLVMVisitor implements Visitor {
     		counter++;
     		Scope callerClassScope = returnCurrTable(callerClass).curr_scope;
     	    if(callerClassScope != null) {
-    	    	//Get a pointer to the entry in the vtable  	
-        		Symb curr_method_symb = callerClassScope.locals.get(e.methodId());
+    	    	//Get a pointer to the entry in the vtable  
+    	    	ArrayList<enumKind> kind = new ArrayList<enumKind>();
+    	    	kind.add(enumKind.method);
+    	    	kind.add(enumKind.method_extend);
+        		Symb curr_method_symb = callerClassScope.findSymbol(e.methodId(),kind);
         		String convert_ret_type = typeConvertor(curr_method_symb.decl);
         		builder.append(", " + "i32 " + curr_method_symb.vtableindex +"\n");
         		
@@ -570,7 +576,7 @@ public class LLVMVisitor implements Visitor {
     	    	Scope curr_method_scope = extendTable.findScope(e.methodId(),scopeType.method);
     	    	// find the args of the function
     	    	if(curr_method_scope != null) {
-	        	    for( Symb sym : curr_method_scope.locals.values()) {
+	        	    for( Symb sym : curr_method_scope.locals) {
 	        	    	if(sym.kind == enumKind.arg) {
 	        	    		builder.append(", ");
 	        	    		String convert_arg_type = typeConvertor(sym.decl);
