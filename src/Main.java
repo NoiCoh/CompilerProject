@@ -28,9 +28,9 @@ public class Main {
                 ArrayList<SymbolTable> symbol_tables = new ArrayList<SymbolTable>();
                 CreateSymbolTable create = new CreateSymbolTable(symbol_tables);
                 create.visit(prog);
-//                for (SymbolTable symbol_table : symbol_tables) {
-//                	symbol_table.printTable();
-//                }
+                for (SymbolTable symbol_table : symbol_tables) {
+                	symbol_table.printTable();
+                }
 
                 if (action.equals("marshal")) {
                     AstXMLSerializer xmlSerializer = new AstXMLSerializer();
@@ -41,8 +41,17 @@ public class Main {
                     outFile.write(astPrinter.getString());
 
                 } else if (action.equals("semantic")) {
-                    throw new UnsupportedOperationException("TODO - Ex. 3");
-
+                	// check if we found error while building the symbol table.
+                	if(!create.getValidatorResult()) {
+                		outFile.write("ERROR\n");
+                		// for testing only - remove in submission.
+                		System.out.println(create.getValidatorMsg());
+                	}
+                	else {
+                		ValidatorVisitor validator = new ValidatorVisitor(symbol_tables);
+                        validator.visit(prog);
+                        outFile.write(validator.getResult());
+                	}
                 } else if (action.equals("compile")) {
                 	LLVMVisitor llPrinter = new LLVMVisitor(symbol_tables);
                 	llPrinter.visit(prog);

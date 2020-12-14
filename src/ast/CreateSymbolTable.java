@@ -13,9 +13,20 @@ public class CreateSymbolTable implements Visitor {
 	enumKind curr_kind = enumKind.empty;
 	int method_vtable_index;
 	int fields_vtable_index;
+	String MainClassName;
+	boolean validator = true;
+	private StringBuilder validator_msg = new StringBuilder();
 	
 	public CreateSymbolTable(ArrayList<SymbolTable> symbol_tables) {
 		this.symbol_tables = symbol_tables;
+	}
+	
+	public String getValidatorMsg() {
+		return validator_msg.toString();
+	}
+	
+	public boolean getValidatorResult() {
+		return validator;
 	}
     
     @Override
@@ -30,29 +41,15 @@ public class CreateSymbolTable implements Visitor {
     public void visit(ClassDecl classDecl) {
     	method_vtable_index = 0;
     	fields_vtable_index = 0;
+    	
+    	validateClassName(classDecl.name());
         SymbolTable symbol_table = new SymbolTable();
         symbol_tables.add(symbol_table);
         curr_symbol_table = symbol_table;
         symbol_table.openScope(scopeType.type_class, classDecl.name());
-        //classDecl.scope = curr_symbol_table.curr_scope;
-        Scope super_scope=null;
-        if (classDecl.superName() != null) {
-        	String super_name=classDecl.superName();
-        	for(SymbolTable t:symbol_tables) {
-        		if (0==t.curr_scope.name.compareTo(super_name)) {
-        			super_scope=t.curr_scope;
-        			if (super_scope!=null) {
-        				break;
-        			}	
-        		}
-        	}
-        	if (super_scope!=null) {
-	            curr_symbol_table.curr_scope.prev=super_scope;
-	        	super_scope.next.add(curr_symbol_table.curr_scope);
-	        }
-        	//System.out.println("Super :"+ classDecl.superName());
-        }
-
+        
+        Scope super_scope=validateSuperClass(classDecl.superName());
+        
         for (var methodDecl : classDecl.methoddecls()) {
         	methodDecl.accept(this);
         	method_vtable_index++;
@@ -91,7 +88,7 @@ public class CreateSymbolTable implements Visitor {
 
     @Override
     public void visit(MainClass mainClass) {
-    	
+    	MainClassName = mainClass.name();
     	SymbolTable symbol_table = new SymbolTable();
         symbol_tables.add(symbol_table);
         curr_symbol_table = symbol_table;
@@ -348,4 +345,46 @@ public class CreateSymbolTable implements Visitor {
 		// TODO Auto-generated method stub
 		
 	}
+	
+	//Validation - The same name cannot be used to name two classes
+	public void validateClassName(String class_name) {
+	    for(SymbolTable t:symbol_tables) {
+			if (0==t.curr_scope.name.compareTo(class_name)) {
+				validator = false;
+				validator_msg.append("The same name cannot be used to name two classes\n");
+			}
+	    }
+	}
+	
+	public Scope validateSuperClass(String super_name) {
+		Scope super_scope=null;
+		if (super_name != null) {
+			//Validation - The main class cannot be extended
+		    if(super_name.equals(MainClassName)) {
+		    	validator=false;
+		    	validator_msg.append("The main class cannot be extended\n");
+		    }
+		    else {
+		    	for(SymbolTable t:symbol_tables) {
+		    		if (0==t.curr_scope.name.compareTo(super_name)) {
+		    			super_scope=t.curr_scope;
+		    			if (super_scope!=null) {
+		    				break;
+		    			}	
+		    		}
+		    	}
+		    	if (super_scope!=null) {
+		            curr_symbol_table.curr_scope.prev=super_scope;
+		        	super_scope.next.add(curr_symbol_table.curr_scope);
+		        }
+		    	else {
+		    		//Validation -super class should be defined before the extended class;
+		    		validator=false;
+		    		validator_msg.append("super class should be defined before the extended class\n");
+		    	}
+		    }
+		}
+	    return super_scope;
+	}
+	
 }
