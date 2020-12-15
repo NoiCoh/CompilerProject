@@ -66,6 +66,9 @@ public class SymbolTable {
 			if(scope.type == scopeType.type_class) {
 				System.out.println("num of methods: " + scope.num_of_methods + " num of fields: " + scope.num_of_fields);
 			}
+			if(scope.type == scopeType.method) {
+				System.out.println("num of args: " + scope.num_of_args);
+			}
 			scope.printLocals();
 			stack.pop();
 
@@ -158,7 +161,7 @@ public class SymbolTable {
 		public ArrayList<Scope> next = new ArrayList<Scope>();
 		public scopeType type;
 		public String name;
-		public int frame_size, level, num_of_methods,  num_of_fields, size_of_object;
+		public int frame_size, level, num_of_methods, num_of_fields, num_of_args, size_of_object;
 		public ArrayList<Symb> locals = new ArrayList<Symb>(); // to locally declared objects
 		ArrayList<enumKind> methodsKind = new ArrayList<enumKind>();
 		ArrayList<enumKind> fieldsKind = new ArrayList<enumKind>();
@@ -171,6 +174,7 @@ public class SymbolTable {
 			this.name = name;
 			this.num_of_methods = 0;
 			this.num_of_fields = 0;
+			this.num_of_args = 0;
 			this.methodsKind.add(enumKind.method_extend);
 			this.methodsKind.add(enumKind.method);
 			this.fieldsKind.add(enumKind.field);
@@ -182,6 +186,9 @@ public class SymbolTable {
 		}
 		public void setNumOfFields(int num) {
 			this.num_of_fields = num;
+		}
+		public void setNumOfArgs(int num) {
+			this.num_of_args = num;
 		}
 		public void setSizeOfObject(int num) {
 			this.size_of_object = num;

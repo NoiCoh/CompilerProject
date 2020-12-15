@@ -51,6 +51,7 @@ public class Main {
                 		ValidatorVisitor validator = new ValidatorVisitor(symbol_tables);
                         validator.visit(prog);
                         outFile.write(validator.getResult());
+                        System.out.println(validator.getValidatorMsg());
                 	}
                 } else if (action.equals("compile")) {
                 	LLVMVisitor llPrinter = new LLVMVisitor(symbol_tables);

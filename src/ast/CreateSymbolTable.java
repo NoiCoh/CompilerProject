@@ -105,6 +105,7 @@ public class CreateSymbolTable implements Visitor {
 
     @Override
     public void visit(MethodDecl methodDecl) {
+    	int num_of_args = 0;
     	curr_name = methodDecl.name();
     	curr_kind = enumKind.method;
         methodDecl.returnType().accept(this);
@@ -112,11 +113,13 @@ public class CreateSymbolTable implements Visitor {
         //methodDecl.scope = curr_symbol_table.curr_scope;
 
         for (var formal : methodDecl.formals()) {
+        	num_of_args++;
         	curr_kind = enumKind.arg;
             formal.accept(this);
             curr_kind = enumKind.var;
             formal.accept(this);
         }
+        curr_symbol_table.curr_scope.setNumOfArgs(num_of_args);
 
         for (var varDecl : methodDecl.vardecls()) {
         	curr_kind = enumKind.var;
