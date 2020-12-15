@@ -39,6 +39,7 @@ public class CreateSymbolTable implements Visitor {
 
     @Override
     public void visit(ClassDecl classDecl) {
+    	int locals_size = 0;
     	method_vtable_index = 0;
     	fields_vtable_index = 0;
     	
@@ -51,8 +52,10 @@ public class CreateSymbolTable implements Visitor {
         Scope super_scope=validateSuperClass(classDecl.superName());
         
         for (var methodDecl : classDecl.methoddecls()) {
+        	locals_size = curr_symbol_table.curr_scope.locals.size();
         	methodDecl.accept(this);
         	method_vtable_index++;
+        	validateFieldsAndMethodDefine(locals_size,curr_symbol_table.curr_scope.locals.size());
         }
         int numOfFields= classDecl.fields().size();
         int numOfMethod = classDecl.methoddecls().size();
@@ -78,8 +81,10 @@ public class CreateSymbolTable implements Visitor {
         	fields_vtable_index = 8;
         }
         for (var fieldDecl : classDecl.fields()) {
+        	locals_size = curr_symbol_table.curr_scope.locals.size();
         	curr_kind = enumKind.field;
             fieldDecl.accept(this);
+            validateFieldsAndMethodDefine(locals_size,curr_symbol_table.curr_scope.locals.size());
         }
         curr_symbol_table.curr_scope.setNumOfFields(numOfFields);
         curr_symbol_table.curr_scope.setNumOfMethods(numOfMethod);
@@ -385,6 +390,13 @@ public class CreateSymbolTable implements Visitor {
 		    }
 		}
 	    return super_scope;
+	}
+	
+	public void validateFieldsAndMethodDefine(int locals_size_before, int local_size_after) {
+        if(locals_size_before == local_size_after) {
+        	validator = false;
+        	validator_msg.append("same name cannot be used for the same field or method in one class\n");
+        }
 	}
 	
 }
