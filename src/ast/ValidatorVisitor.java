@@ -14,6 +14,9 @@ public class ValidatorVisitor implements Visitor {
 	String type;
 	String curr_class;
 	String curr_super_class;
+	String curr_method;
+	boolean method_call=false;//if we are calling a function-method call is true
+	int countErrors=0;//for test
 	
 	
 	public ValidatorVisitor(ArrayList<SymbolTable> symbol_tables) {
@@ -52,13 +55,15 @@ public class ValidatorVisitor implements Visitor {
 
 	@Override
 	public void visit(MainClass mainClass) {
-		
-		
+		//check sys args in mainClass
+		mainClass.name();
+	    mainClass.argsName();
+	    mainClass.mainStatement().accept(this);
 	}
 
 	@Override
 	public void visit(MethodDecl methodDecl) {
-		String curr_method = methodDecl.name();
+		curr_method = methodDecl.name();
 		int curr_num_of_args = 0;
 		String ret_type = null;
 		ArrayList<String> args = new ArrayList<String>();
@@ -162,7 +167,7 @@ public class ValidatorVisitor implements Visitor {
 			SymbolTable symbol_table = returnCurrTable(type);
 			if(symbol_table == null) {
 				result = "ERROR\n";
-				validator_msg.append("type declaration of a reference type not defined\n");
+				validator_msg.append("type declaration "+type+ " of a reference type not defined\n");
 			}
 		}
 	}
@@ -174,7 +179,7 @@ public class ValidatorVisitor implements Visitor {
 			SymbolTable symbol_table = returnCurrTable(type);
 			if(symbol_table == null) {
 				result = "ERROR\n";
-				validator_msg.append("type declaration of a reference type not defined\n");
+				validator_msg.append("type declaration "+type+ " of a reference type not defined\n");
 			}
 		}
 	}
@@ -199,13 +204,13 @@ public class ValidatorVisitor implements Visitor {
 
 	@Override
 	public void visit(SysoutStatement sysoutStatement) {
-		// TODO Auto-generated method stub
+		sysoutStatement.arg().accept(this);
 		
 	}
 
 	@Override
 	public void visit(AssignStatement assignStatement) {
-		// TODO Auto-generated method stub
+		assignStatement.rv().accept(this);
 		
 	}
 
@@ -259,7 +264,12 @@ public class ValidatorVisitor implements Visitor {
 
 	@Override
 	public void visit(MethodCallExpr e) {
-		// TODO Auto-generated method stub
+		method_call=true;
+		e.ownerExpr().accept(this);
+		//System.out.print(e.methodId());
+		//System.out.print(e.ownerExpr());
+		method_call=false;
+		
 		
 	}
 
@@ -283,9 +293,44 @@ public class ValidatorVisitor implements Visitor {
 
 	@Override
 	public void visit(IdentifierExpr e) {
-		// TODO Auto-generated method stub
+		//ex10
+		if (method_call==true) { 
+		//find the static type of object inside current function
+		SymbolTable curr_symbol_table = returnCurrTable(curr_class);
+		Scope curr_scope = curr_symbol_table.curr_scope;
+		Scope scopeMethod=null;
+		for(Scope scope : curr_scope.next) {
+			if(scope.type.equals(scopeType.method)) {
+				if(scope.name.equals(curr_method)) {
+					scopeMethod=scope;
+				}
+			}
+		}
+		if (scopeMethod!=null) {
+		for (Symb local : scopeMethod.locals) {
+			if (local.name.equals(e.id())) {
+				//System.out.print(e.id());
+				if(local.kind.equals(enumKind.arg) || local.kind.equals(enumKind.var)) {
+					if(local.decl.equals("int") || local.decl.equals("bool") || local.decl.equals("int_array")) {
+						//countErrors++;
+						//System.out.println(countErrors);
+						result = "ERROR\n";
+						validator_msg.append("the static type of the object is not a reference type\n");
+						return;
+					}
+					else {
+						return;
+					}
+				}
+			}
+		}}
+		//need to do-if there is no such var or arg in the function, then we need to check if there is such a field in the class
 		
-	}
+		//or the class father..
+		
+		
+		
+	}}
 
 	@Override
 	public void visit(ThisExpr e) {
@@ -301,7 +346,21 @@ public class ValidatorVisitor implements Visitor {
 
 	@Override
 	public void visit(NewObjectExpr e) {
-		// TODO Auto-generated method stub
+		//ex9
+		//System.out.println(e.classId());
+		SymbolTable curr_symbol_table = returnCurrTable(e.classId());
+		if (curr_symbol_table==null) {
+			result = "ERROR\n";
+			validator_msg.append("new object "+e.classId()+" that is defined somewhere in the file \n");
+			return;
+		}
+		else {
+			if (!curr_symbol_table.curr_scope.type.equals(scopeType.type_class)) {
+				result = "ERROR\n";
+				validator_msg.append("new object "+e.classId()+" that is defined somewhere in the file \n");
+				return;
+			}
+	}
 		
 	}
 
@@ -332,6 +391,7 @@ public class ValidatorVisitor implements Visitor {
 	@Override
 	public void visit(RefType t) {
 		type = t.id();
+		
 		
 	}
     public SymbolTable returnCurrTable(String curr_class) {
