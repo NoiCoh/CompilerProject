@@ -14,6 +14,7 @@ public class ValidatorVisitor implements Visitor {
 	String type;
 	String curr_class;
 	String curr_super_class;
+	String class_call;
 	String curr_method;
 	boolean method_call=false;//if we are calling a function-method call is true
 	boolean length_call=false;
@@ -238,6 +239,10 @@ public class ValidatorVisitor implements Visitor {
 	@Override
 	public void visit(SysoutStatement sysoutStatement) {
 		sysoutStatement.arg().accept(this);
+        if(!type.equals("int")) {
+			result = "ERROR\n";
+			validator_msg.append("The argument to System.out.println is of type int\n");
+		}
 		
 	}
 
@@ -341,10 +346,22 @@ public class ValidatorVisitor implements Visitor {
 	public void visit(MethodCallExpr e) {
 		method_call=true;
 		e.ownerExpr().accept(this);
+		method_call=false;
+		SymbolTable curr_symbol_table = returnCurrTable(class_call);
+		if(curr_symbol_table != null) {
+			Scope curr_scope = curr_symbol_table.curr_scope;
+			for (Symb local : curr_scope.locals) {
+				if (local.name.equals(e.methodId())) {
+					type = local.decl;
+					break;
+				}
+			}
+		}
+        for (Expr arg : e.actuals()) {
+            arg.accept(this);
+        }
 		//System.out.print(e.methodId());
 		//System.out.print(e.ownerExpr());
-		method_call=false;
-		
 		
 	}
 
@@ -475,13 +492,17 @@ public class ValidatorVisitor implements Visitor {
 
 	@Override
 	public void visit(NewIntArrayExpr e) {
-		// TODO Auto-generated method stub
-		
+		e.lengthExpr().accept(this);
+		if(!(type.equals("int"))) {
+			result = "ERROR\n";
+			validator_msg.append("In an array allocation new int[e], e is not an int.\n");
+		}
 	}
 
 	@Override
 	public void visit(NewObjectExpr e) {
 		//ex9
+		class_call = e.classId();
 		SymbolTable curr_symbol_table = returnCurrTable(e.classId());
 		if (curr_symbol_table==null) {
 			result = "ERROR\n";
