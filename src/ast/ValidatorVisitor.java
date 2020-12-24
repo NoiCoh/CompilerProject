@@ -10,8 +10,10 @@ public class ValidatorVisitor implements Visitor {
 	private String result = "OK\n";
 	private StringBuilder validator_msg = new StringBuilder();
 	private ArrayList<SymbolTable> symbol_tables;
-	
+	boolean new_exp= false;
+	boolean is_thisexp=false;
 	String type;
+	String var_decl;
 	String curr_class;
 	String curr_super_class;
 	String class_call;
@@ -27,6 +29,7 @@ public class ValidatorVisitor implements Visitor {
 	boolean isActual=false;
 	boolean is_boolean_exp;
 	boolean is_exp=false;
+	
 	
 	
 	public ValidatorVisitor(ArrayList<SymbolTable> symbol_tables) {
@@ -100,10 +103,12 @@ public class ValidatorVisitor implements Visitor {
 
 	@Override
 	public void visit(MainClass mainClass) {
+		curr_class="main";
 		//check sys args in mainClass
 		mainClass.name();
 	    mainClass.argsName();
 	    mainClass.mainStatement().accept(this);
+	    
 	}
 
 	@Override
@@ -203,7 +208,11 @@ public class ValidatorVisitor implements Visitor {
             
         }
         methodDecl.ret().accept(this);
-		
+		if (!ret_type.equals(type)) {
+			result = "ERROR\n";
+			validator_msg.append(curr_method+"---------------------different return type");
+			//System.out.println(curr_method+"---------------------different return type\n");
+		}
 	}
 
 	@Override
@@ -269,8 +278,10 @@ public class ValidatorVisitor implements Visitor {
 
 	@Override
 	public void visit(AssignStatement assignStatement) {
-		assignStatement.rv().accept(this);
+		String lv_decl=null;
 		String lv_name=assignStatement.lv();
+		//System.out.println(lv_name);
+		assignStatement.rv().accept(this);
 		String var_class;
 		boolean found_var_in_class=false;
 		SymbolTable var_class_symbol_table=null;
@@ -284,18 +295,47 @@ public class ValidatorVisitor implements Visitor {
 				for (Symb local : scopeMethod.locals) {
 					if (local.name.equals(lv_name) && (local.kind.equals(enumKind.arg)||local.kind.equals(enumKind.var))) {
 						found_var_in_method = true;
+						lv_decl=local.decl;
+						//System.out.println(lv_decl);
 					}}
 				if (found_var_in_method==false) {
 					for (Symb local : curr_scope.locals) {
 						if (local.name.equals(lv_name)&&(local.kind.equals(enumKind.field)||local.kind.equals(enumKind.field_extend))) {
 							found_var_in_class=true;
+							lv_decl=local.decl;
 				}}}	
 	}
 			if(found_var_in_method==false&&found_var_in_class==false) {
 				result = "ERROR\n";
-				System.out.println("eror:lv is not defiend: "+curr_class+" "+curr_method+" "+lv_name);
-				//validator_msg.append("lv is not defiend\n");
-			}}}
+				//System.out.println("eror:lv is not defiend: "+curr_class+" "+curr_method+" "+lv_name);
+				validator_msg.append("lv is not defiend\n");
+			}
+			if(new_exp) {
+				new_exp=false;
+				if(!class_call.equals(lv_decl)) { //ex16 assignment with new
+					result = "ERROR\n";
+					validator_msg.append("lv and rv with different decl"+curr_method+" "+curr_class+" "+ lv_name+"\n") ;
+					//System.out.println("lv and rv with different decl"+curr_method+" "+curr_class+" "+ lv_name+"\n") ;
+			}
+				}
+			else if(is_thisexp) {
+				if(!curr_class.equals(lv_decl)) { //ex16 assignment with new
+					check_assignment_subtyping(lv_decl);
+					
+			}
+				is_thisexp=false;
+			}
+			
+			else if(lv_decl!=null) {
+				if(!type.equals(lv_decl)) {
+					check_assignment_subtyping(lv_decl);
+					result = "ERROR\n";
+					validator_msg.append("lv and rv with different decl"+curr_method+" "+curr_class+" "+ lv_name+"\n") ;
+					//System.out.println("lv and rv with different decl"+curr_method+" "+curr_class+" "+ lv_name+"\n") ;
+			}
+				}
+			}
+		}
 
 	@Override
 	public void visit(AssignArrayStatement assignArrayStatement) {
@@ -365,19 +405,25 @@ public class ValidatorVisitor implements Visitor {
 
 	@Override
 	public void visit(AddExpr e) {
+		is_exp=true;
 		visitBinaryExpr(e,"+");
+		is_exp=false;
 		
 	}
 
 	@Override
 	public void visit(SubtractExpr e) {
+		is_exp=true;
 		visitBinaryExpr(e,"-");
+		is_exp=false;
 		
 	}
 
 	@Override
 	public void visit(MultExpr e) {
+		is_exp=true;
 		visitBinaryExpr(e,"*");
+		is_exp=false;
 		
 	}
 
@@ -412,10 +458,36 @@ public class ValidatorVisitor implements Visitor {
 	        arg.accept(this); 
 	        isActual=false;
 	    }
-	    
+	    method_call=true;
 		e.ownerExpr().accept(this);
+		if (while_or_if==true) {
+			SymbolTable curr_symbol_table = returnCurrTable(class_call);
+			if(curr_symbol_table != null) {
+			Scope curr_scope = curr_symbol_table.curr_scope;
+					for (Symb symbol : curr_scope.locals) {
+						if(symbol.name.equals(method_call_name)) {
+							if(symbol.kind.equals(enumKind.method)||symbol.kind.equals(enumKind.method_extend)) {
+								if(!symbol.decl.equals("bool")) {
+									result = "ERROR\n";
+									//System.out.println("inside methodcallexp-----------------------"+"method "+symbol.name+" "+curr_class+" "+curr_method);
+									validator_msg.append(curr_class+" "+curr_method+ " cond in while or if statement is not boolean\n");
+								
+		}}}}}}
 		method_call=false;
-		SymbolTable curr_symbol_table = returnCurrTable(class_call);
+//		if(!curr_class.equals("main")){
+//		SymbolTable curr_symbol_table = returnCurrTable(curr_class);//error!!! before-class_call
+//		if(curr_symbol_table != null) {
+//			Scope curr_scope = curr_symbol_table.curr_scope;
+//			for (Symb local : curr_scope.locals) {
+//				if (local.name.equals(e.methodId())) {
+//					type = local.decl;
+//					break;
+//				}
+//			}
+//		}
+//	}
+//		else {
+		SymbolTable curr_symbol_table = returnCurrTable(class_call);//error!!! before-class_call
 		if(curr_symbol_table != null) {
 			Scope curr_scope = curr_symbol_table.curr_scope;
 			for (Symb local : curr_scope.locals) {
@@ -425,13 +497,12 @@ public class ValidatorVisitor implements Visitor {
 				}
 			}
 		}
-
-        
-        
+	}
+	
 		//System.out.print(e.methodId());
 		//System.out.print(e.ownerExpr());
 		
-	}
+	
 
 	@Override
 	public void visit(IntegerLiteralExpr e) {
@@ -444,6 +515,8 @@ public class ValidatorVisitor implements Visitor {
 
 	@Override
 	public void visit(TrueExpr e) {
+		//check
+		type = "bool";
 		if (method_call) {
 		method_call_args.add("bool");
 		}
@@ -451,6 +524,8 @@ public class ValidatorVisitor implements Visitor {
 
 	@Override
 	public void visit(FalseExpr e) {
+		//check
+		type = "bool";
 		if (method_call) {
 		method_call_args.add("bool");
 		}
@@ -466,13 +541,13 @@ public class ValidatorVisitor implements Visitor {
 		SymbolTable curr_symbol_table = returnCurrTable(curr_class);
 		if(curr_symbol_table != null) {
 		Scope curr_scope = curr_symbol_table.curr_scope;
-		if (while_or_if&&method_call==true&&is_exp==false) {//ex17
+		if (while_or_if&&method_call==true&&is_exp==false&&isActual==false) {//ex17
 				for (Symb symbol : curr_scope.locals) {
 					if(symbol.name.equals(method_call_name)) {
 						if(symbol.kind.equals(enumKind.method)||symbol.kind.equals(enumKind.method_extend)) {
 							if(!symbol.decl.equals("bool")) {
 								result = "ERROR\n";
-								System.out.println("-----------------------"+"method "+symbol.name);
+								//System.out.println("-----------------------"+"method "+symbol.name+" "+curr_class+" "+curr_method);
 								validator_msg.append(curr_class+" "+curr_method+ " cond in while or if statement is not boolean\n");
 							}}}}}
 			Scope scopeMethod = findCurrMethodScope(curr_scope,curr_method);
@@ -483,7 +558,7 @@ public class ValidatorVisitor implements Visitor {
 						if (while_or_if && method_call==false&&is_exp==false) {//ex17
 							if(!local.decl.equals("bool")) {
 								result = "ERROR\n";
-								System.out.println("-----------------------"+"var "+local.name);
+								//System.out.println("-----------------------"+"var "+local.name);
 								validator_msg.append(curr_class+" "+curr_method+ " cond in while or if statement is not boolean\n");
 							}}
 						
@@ -507,11 +582,14 @@ public class ValidatorVisitor implements Visitor {
 										break;
 									}
 								}
-							}}
-							if (found_method==false) {
+							}
+							
+							}
+							if (found_method==false&&method_call==true ) {
 							result = "ERROR\n";
 							validator_msg.append("the function "+method_call_name+" is not defined in the class "+curr_class+"\n");
 							}
+							
 					
 						}}
 						else if(length_call==true){//ex13
@@ -523,6 +601,7 @@ public class ValidatorVisitor implements Visitor {
 						else {
 							type = local.decl;
 						}
+					
 						break;
 					}
 				}
@@ -536,7 +615,7 @@ public class ValidatorVisitor implements Visitor {
 								found_var_in_class=true;
 								if (while_or_if&&method_call==false&&is_exp==false) {//ex17
 									if(!local.decl.equals("bool")) {
-										System.out.println("-----------------------"+local.name);
+										//System.out.println("-----------------------"+local.name);
 										result = "ERROR\n";
 										validator_msg.append(curr_class+" "+curr_method+ " cond in while or if statement is not boolean\n");
 									}}
@@ -562,7 +641,7 @@ public class ValidatorVisitor implements Visitor {
 									}
 								}
 							}
-							if (found_method==false) {
+							if (found_method==false&&method_call==true) {
 							result = "ERROR\n";
 							validator_msg.append("the function "+method_call_name+" is not defined in the class "+curr_class+"\n");
 							}
@@ -587,9 +666,10 @@ public class ValidatorVisitor implements Visitor {
 		}
 		if (found_var_in_method==false &&found_var_in_class==false) { //ex14
 			result = "ERROR\n";
-			System.out.println("the var is not defined"+curr_class+" "+curr_method);
-			//validator_msg.append("the var is not defined\n");
+			//System.out.println("the var is not defined"+curr_class+" "+curr_method);
+			validator_msg.append("the var is not defined\n");
 		}
+			
 	}
 	
 
@@ -598,8 +678,8 @@ public class ValidatorVisitor implements Visitor {
 				//countErrors++;
 				//System.out.println(countErrors);
 				result = "ERROR\n";
-				System.out.println("the static type of the object is not a reference type\n");
-				//validator_msg.append("the static type of the object is not a reference type\n");
+				//System.out.println("the static type of the object is not a reference type\n");
+				validator_msg.append("the static type of the object is not a reference type\n");
 				return null;
 			}
 			else {
@@ -646,6 +726,9 @@ public class ValidatorVisitor implements Visitor {
 
 	@Override
 	public void visit(ThisExpr e) {
+		if (method_call==false) {
+		is_thisexp=true;
+		}
 		SymbolTable this_symbol_table=null;
 		boolean found_method=false;
 		this_symbol_table = returnCurrTable(curr_class);
@@ -672,6 +755,7 @@ public class ValidatorVisitor implements Visitor {
 	@Override
 	public void visit(NewObjectExpr e) {
 		//ex9
+		new_exp=true;
 		class_call = e.classId();
 		SymbolTable curr_symbol_table = returnCurrTable(e.classId());
 		if (curr_symbol_table==null) {
@@ -790,5 +874,50 @@ public class ValidatorVisitor implements Visitor {
 	
     }
 return found_method;
-    }}
+    }
+
+public void check_assignment_subtyping(String lv_decl){
+	boolean found_super_class=false;
+	if (is_thisexp) {
+	if (curr_super_class==null) {
+		result = "ERROR\n";
+		validator_msg.append("in this: lv and rv decls are different\n");
+		//System.out.println("in this");
+		return;
+			}
+	if (curr_super_class != null) {
+			if(!curr_super_class.equals(lv_decl)) {
+				SymbolTable super_symbol_table = returnCurrTable(curr_super_class);
+				Scope s=super_symbol_table.curr_scope;
+				while(s.prev!=null) {
+					s = s.prev;
+					if((s.name).equals(lv_decl)) {
+						found_super_class = true;
+						break;
+					}	
+}
+				if(found_super_class==false) {
+					result = "ERROR\n";
+					validator_msg.append("in this: lv and rv decls are different\n");
+					//System.out.println("in this");
+				}
+}}}
+	else if (!(type.equals("bool")||type.equals("int")||type.equals("int_array"))) {
+		SymbolTable super_symbol_table = returnCurrTable(type);
+		Scope s=super_symbol_table.curr_scope;
+		while(s.prev!=null) {
+			s = s.prev;
+			if((s.name).equals(lv_decl)) {
+				found_super_class = true;
+				break;
+			}	
+}
+		if(found_super_class==false) {
+			result = "ERROR\n";
+			validator_msg.append("not in this : lv and rv decls are different\n");
+			//System.out.println("not in this");
+		}
+	}
+	}}
+
 

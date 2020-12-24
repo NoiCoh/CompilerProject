@@ -145,6 +145,11 @@ public class SymbolTable {
 							return true;
 						}
 					}
+					else if(this.kind == enumKind.var || this.kind == enumKind.arg) {
+						if (otherSymbol.kind.equals(enumKind.var) || otherSymbol.kind.equals(enumKind.arg)) {
+							return true;
+						}
+					}
 					else if(this.kind == enumKind.field || this.kind == enumKind.field_extend) {
 						if (otherSymbol.kind.equals(enumKind.field) || otherSymbol.kind.equals(enumKind.field_extend)) {
 							return true;

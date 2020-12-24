@@ -265,13 +265,18 @@ public class CreateSymbolTable implements Visitor {
     		vtable_index = fields_vtable_index;
     		fields_vtable_index+= 4;
     	}
-    	curr_symbol_table.addSymbol(curr_name, "int", curr_kind, curr_symbol_table.curr_scope.name,vtable_index);
+    	Symb check =curr_symbol_table.addSymbol(curr_name, "int", curr_kind, curr_symbol_table.curr_scope.name,vtable_index);
+    	if (check==null) {
+    		validator = false;
+        	validator_msg.append("same name cannot be used for the same var in the method"+curr_name+"\n");
+    	}
     	curr_name = "";
     	curr_kind = enumKind.empty;
     }
 
     @Override
     public void visit(BoolAstType t) {
+    	
     	int vtable_index = 0;
     	if(curr_kind==enumKind.arg) {
     		curr_name = "%" + curr_name;
@@ -283,7 +288,11 @@ public class CreateSymbolTable implements Visitor {
     		vtable_index = fields_vtable_index;
     		fields_vtable_index+= 1;
     	}
-    	curr_symbol_table.addSymbol(curr_name, "bool", curr_kind, curr_symbol_table.curr_scope.name,vtable_index);
+    	Symb check =curr_symbol_table.addSymbol(curr_name, "bool", curr_kind, curr_symbol_table.curr_scope.name,vtable_index);
+    	if (check==null) {
+    		validator = false;
+        	validator_msg.append("same name cannot be used for the same var in the method "+curr_name+"\n");
+    	}
     	curr_name = "";
     	curr_kind = enumKind.empty;
     }
@@ -301,7 +310,11 @@ public class CreateSymbolTable implements Visitor {
     		vtable_index = fields_vtable_index;
     		fields_vtable_index+= 8;
     	}
-    	curr_symbol_table.addSymbol(curr_name, "int_array", curr_kind,curr_symbol_table.curr_scope.name,vtable_index);
+    	Symb check =curr_symbol_table.addSymbol(curr_name, "int_array", curr_kind,curr_symbol_table.curr_scope.name,vtable_index);
+    	if (check==null) {
+    		validator = false;
+        	validator_msg.append("same name cannot be used for the same var in the method "+curr_name+"\n");
+    	}
     	curr_name = "";
     	curr_kind = enumKind.empty;
     }
@@ -319,7 +332,11 @@ public class CreateSymbolTable implements Visitor {
     		vtable_index = fields_vtable_index;
     		fields_vtable_index+= 8;
     	}
-    	curr_symbol_table.addSymbol(curr_name, t.id(), curr_kind, curr_symbol_table.curr_scope.name,vtable_index);
+    	Symb check=curr_symbol_table.addSymbol(curr_name, t.id(), curr_kind, curr_symbol_table.curr_scope.name,vtable_index);
+    	if (check==null) {
+    		validator = false;
+        	validator_msg.append("same name cannot be used for the same var in the method"+curr_name+"\n");
+    	}
     	curr_name = "";
     	curr_kind = enumKind.empty;
     }
