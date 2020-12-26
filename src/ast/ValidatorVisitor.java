@@ -10,8 +10,6 @@ public class ValidatorVisitor implements Visitor {
 	private String result = "OK\n";
 	private StringBuilder validator_msg = new StringBuilder();
 	private ArrayList<SymbolTable> symbol_tables;
-	boolean new_exp= false;
-	boolean is_thisexp=false;
 	String type;
 	String var_decl;
 	String curr_class;
@@ -27,8 +25,15 @@ public class ValidatorVisitor implements Visitor {
 	ArrayList<String> method_call_args = new ArrayList<String>();
 	int num_of_actuals;
 	boolean isActual=false;
-	boolean is_boolean_exp;
+	boolean is_boolean_exp=false;
 	boolean is_exp=false;
+	String call_var_class;//decl of the var e in e.f() 
+	String methodcall_type;
+	boolean is_assignStatement=false;
+	String lv_decl;
+	String lv_name;
+	boolean is_thisexp=false;
+	boolean is_newIntArray=false;
 	
 	
 	
@@ -50,7 +55,7 @@ public class ValidatorVisitor implements Visitor {
         if(infixSymbol.equals("&&")) {
         	if(!(e1_type.equals("bool") && e2_type.equals("bool"))) {
         		result = "ERROR\n";
-				validator_msg.append("The arguments to the predefined operators are of the incorrect type.\n");
+				validator_msg.append(curr_class+" "+curr_method+" The arguments to the predefined operators are of the incorrect type.\n");
         	}
         	
         	else {
@@ -61,7 +66,7 @@ public class ValidatorVisitor implements Visitor {
         else if(infixSymbol.equals("<")) {
         	if(!(e1_type.equals("int") && e2_type.equals("int"))) {
         		result = "ERROR\n";
-				validator_msg.append("The arguments to the predefined operators are of the incorrect type.\n");
+				validator_msg.append(curr_class+" "+curr_method+"The arguments to the predefined operators are of the incorrect type.\n");
         	}
         	else {
         		is_boolean_exp=true;
@@ -72,10 +77,16 @@ public class ValidatorVisitor implements Visitor {
         else {
         	if(!(e1_type.equals("int") && e2_type.equals("int"))) {
         		result = "ERROR\n";
-				validator_msg.append("The arguments to the predefined operators are of the incorrect type.\n");
+				validator_msg.append(curr_class+" "+curr_method+"The arguments to the predefined operators are of the incorrect type.\n");
         	}
         	type = "int";
         }
+		if (is_assignStatement&&is_newIntArray==false) {
+			if(!type.equals(lv_decl)) {
+				result = "ERROR\n";
+				validator_msg.append("binaryeexp"+ curr_class+" "+curr_method+"not in this: lv and rv with different decl lv_name: " + lv_name+"\n");
+		}	
+	}	
     }
     
 	@Override
@@ -148,13 +159,13 @@ public class ValidatorVisitor implements Visitor {
 								}
 								if(found_super_class == false) {
 									result = "ERROR\n";
-									validator_msg.append("override method with diffrent return type\n");
+									validator_msg.append(curr_class+" "+curr_method+"override method with diffrent return type\n");
 									return;
 								}
 							}
 							else {
 								result = "ERROR\n";
-								validator_msg.append("override method with diffrent return type\n");
+								validator_msg.append(curr_class+" "+curr_method+"override method with diffrent return type\n");
 								return;
 							}
 						}
@@ -171,30 +182,7 @@ public class ValidatorVisitor implements Visitor {
 								}
 							}
 							check_args(super_scope,curr_num_of_args,args,curr_method);
-//							for(Scope scope : super_scope.next) {
-//								if(scope.type.equals(scopeType.method)) {
-//									if(scope.name.equals(curr_method)) {
-//										if(scope.num_of_args!=curr_num_of_args) {
-//											result = "ERROR\n";
-//											validator_msg.append("override method with diffrent number of arguments\n");
-//											return;
-//										}
-//										else {
-//											for(int i=0;i<curr_num_of_args;i++) {
-//												for( Symb local : scope.locals) {
-//													if(local.kind.equals(enumKind.arg)) {
-//														if(local.decl!=args.get(i)) {
-//															result = "ERROR\n";
-//															validator_msg.append("override method with diffrent type of arguments\n");
-//															return;
-//														}
-//													}
-//												}
-//											}
-//										}
-//									}
-//								}	
-//							}
+
 						}
 					}
 				}
@@ -207,14 +195,21 @@ public class ValidatorVisitor implements Visitor {
             stmt.accept(this);
             
         }
-        methodDecl.ret().accept(this);
+        methodDecl.ret().accept(this);//ex18
+       
 		if (!ret_type.equals(type)) {
-			result = "ERROR\n";
-			validator_msg.append(curr_method+"---------------------different return type");
-			//System.out.println(curr_method+"---------------------different return type\n");
+			if (!(type.equals("bool")||type.equals("int")||type.equals("int_array"))) {
+				if(!check_assignment_subtyping(ret_type)){
+				result = "ERROR\n";
+				validator_msg.append(curr_class+" "+curr_method+" different return type"+ret_type+" not equal to "+type+"\n");
 		}
+				}
+			else {
+				result = "ERROR\n";
+				validator_msg.append(curr_class+" "+curr_method+" different return type"+ret_type+" not equal to "+type+"\n");
+			}
 	}
-
+	}
 	@Override
 	public void visit(FormalArg formalArg) {
 		formalArg.type().accept(this);
@@ -222,7 +217,7 @@ public class ValidatorVisitor implements Visitor {
 			SymbolTable symbol_table = returnCurrTable(type);
 			if(symbol_table == null) {
 				result = "ERROR\n";
-				validator_msg.append("type declaration "+type+ " of a reference type not defined\n");
+				validator_msg.append(curr_class+" "+curr_method+"type declaration "+type+ " of a reference type not defined\n");
 			}
 		}
 	}
@@ -234,7 +229,7 @@ public class ValidatorVisitor implements Visitor {
 			SymbolTable symbol_table = returnCurrTable(type);
 			if(symbol_table == null) {
 				result = "ERROR\n";
-				validator_msg.append("type declaration "+type+ " of a reference type not defined\n");
+				validator_msg.append(curr_class+" "+curr_method+"type declaration "+type+ " of a reference type not defined\n");
 			}
 		}
 	}
@@ -271,17 +266,15 @@ public class ValidatorVisitor implements Visitor {
 		sysoutStatement.arg().accept(this);
         if(!type.equals("int")) {
 			result = "ERROR\n";
-			validator_msg.append("The argument to System.out.println is of type int\n");
+			validator_msg.append(curr_class+" "+curr_method+"The argument to System.out.println is of type int\n");
 		}
 		
 	}
 
 	@Override
 	public void visit(AssignStatement assignStatement) {
-		String lv_decl=null;
-		String lv_name=assignStatement.lv();
-		//System.out.println(lv_name);
-		assignStatement.rv().accept(this);
+		is_assignStatement=true;
+		lv_name=assignStatement.lv();
 		String var_class;
 		boolean found_var_in_class=false;
 		SymbolTable var_class_symbol_table=null;
@@ -296,7 +289,7 @@ public class ValidatorVisitor implements Visitor {
 					if (local.name.equals(lv_name) && (local.kind.equals(enumKind.arg)||local.kind.equals(enumKind.var))) {
 						found_var_in_method = true;
 						lv_decl=local.decl;
-						//System.out.println(lv_decl);
+					
 					}}
 				if (found_var_in_method==false) {
 					for (Symb local : curr_scope.locals) {
@@ -307,35 +300,18 @@ public class ValidatorVisitor implements Visitor {
 	}
 			if(found_var_in_method==false&&found_var_in_class==false) {
 				result = "ERROR\n";
-				//System.out.println("eror:lv is not defiend: "+curr_class+" "+curr_method+" "+lv_name);
-				validator_msg.append("lv is not defiend\n");
-			}
-			if(new_exp) {
-				new_exp=false;
-				if(!class_call.equals(lv_decl)) { //ex16 assignment with new
-					result = "ERROR\n";
-					validator_msg.append("lv and rv with different decl"+curr_method+" "+curr_class+" "+ lv_name+"\n") ;
-					//System.out.println("lv and rv with different decl"+curr_method+" "+curr_class+" "+ lv_name+"\n") ;
+				validator_msg.append(curr_class+" "+curr_method+" lv"+lv_name+ " is not defiend\n");
 			}
 				}
-			else if(is_thisexp) {
-				if(!curr_class.equals(lv_decl)) { //ex16 assignment with new
-					check_assignment_subtyping(lv_decl);
-					
+		assignStatement.rv().accept(this);
+	
+		is_assignStatement=false;
+		lv_decl=null;
+		lv_name=null;
 			}
-				is_thisexp=false;
-			}
-			
-			else if(lv_decl!=null) {
-				if(!type.equals(lv_decl)) {
-					check_assignment_subtyping(lv_decl);
-					result = "ERROR\n";
-					validator_msg.append("lv and rv with different decl"+curr_method+" "+curr_class+" "+ lv_name+"\n") ;
-					//System.out.println("lv and rv with different decl"+curr_method+" "+curr_class+" "+ lv_name+"\n") ;
-			}
-				}
-			}
-		}
+		
+		
+		
 
 	@Override
 	public void visit(AssignArrayStatement assignArrayStatement) {
@@ -366,12 +342,12 @@ public class ValidatorVisitor implements Visitor {
 		assignArrayStatement.index().accept(this);
 		if(!type.equals("int")) {
 			result = "ERROR\n";
-			validator_msg.append("array index is not in type int\n");
+			validator_msg.append(curr_class+" "+curr_method+ "array index is not in type int\n");
 		}
         assignArrayStatement.rv().accept(this);
         if(!type.equals("int")) {
 			result = "ERROR\n";
-			validator_msg.append("array assign is not in type int\n");
+			validator_msg.append(curr_class+" "+curr_method+" array assign is not in type int\n");
 		}
 		
 	}
@@ -382,7 +358,7 @@ public class ValidatorVisitor implements Visitor {
 		visitBinaryExpr(e,"&&");
 		if (!is_boolean_exp) {
 			result = "ERROR\n";
-			validator_msg.append("&& expression in if or while is not boolean\n");
+			validator_msg.append(curr_class+" "+curr_method+"&& expression in if or while is not boolean\n");
 		}
 		is_boolean_exp=false;
 		is_exp=false;
@@ -395,7 +371,7 @@ public class ValidatorVisitor implements Visitor {
 		visitBinaryExpr(e,"<");
 		if (!is_boolean_exp) {
 			result = "ERROR\n";
-			validator_msg.append("< expression in if or while is not boolean\n");
+			validator_msg.append(curr_class+" "+curr_method+"< expression in if or while is not boolean\n");
 		}
 		is_boolean_exp=false;
 		is_exp=false;
@@ -435,7 +411,7 @@ public class ValidatorVisitor implements Visitor {
 		e.indexExpr().accept(this);	
 		if(!type.equals("int")) {
 			result = "ERROR\n";
-			validator_msg.append("array index is not in type int\n");
+			validator_msg.append(curr_class+" "+curr_method+"array index is not in type int\n");
 		}
 	}
 
@@ -450,7 +426,9 @@ public class ValidatorVisitor implements Visitor {
 	@Override
 	public void visit(MethodCallExpr e) {
 		method_call_args.clear();
+		method_call_name=null;
 		method_call=true;
+		methodcall_type=null;
 		num_of_actuals=e.actuals().size();
 		method_call_name=e.methodId();
 	    for (Expr arg : e.actuals()) {
@@ -469,25 +447,39 @@ public class ValidatorVisitor implements Visitor {
 							if(symbol.kind.equals(enumKind.method)||symbol.kind.equals(enumKind.method_extend)) {
 								if(!symbol.decl.equals("bool")) {
 									result = "ERROR\n";
-									//System.out.println("inside methodcallexp-----------------------"+"method "+symbol.name+" "+curr_class+" "+curr_method);
-									validator_msg.append(curr_class+" "+curr_method+ " cond in while or if statement is not boolean\n");
+									validator_msg.append("4 "+curr_class+" "+curr_method+ " cond in while or if statement is not boolean\n");
 								
 		}}}}}}
 		method_call=false;
-//		if(!curr_class.equals("main")){
-//		SymbolTable curr_symbol_table = returnCurrTable(curr_class);//error!!! before-class_call
-//		if(curr_symbol_table != null) {
-//			Scope curr_scope = curr_symbol_table.curr_scope;
-//			for (Symb local : curr_scope.locals) {
-//				if (local.name.equals(e.methodId())) {
-//					type = local.decl;
-//					break;
-//				}
-//			}
-//		}
-//	}
-//		else {
-		SymbolTable curr_symbol_table = returnCurrTable(class_call);//error!!! before-class_call
+
+		SymbolTable curr_symbol_table = returnCurrTable(call_var_class);//error!!! before-class_call
+		if(curr_symbol_table != null) {
+			Scope curr_scope = curr_symbol_table.curr_scope;
+			for (Symb local : curr_scope.locals) {
+				if (local.name.equals(e.methodId())) {
+					methodcall_type = local.decl;
+					if (isActual==true) {
+						method_call_args.add(methodcall_type);
+					}
+					break;
+				}
+			}
+			call_var_class=null;
+			if (methodcall_type!=null) {
+			if(is_assignStatement&&isActual==false) {
+			if(!methodcall_type.equals(lv_decl)) {
+				if (!check_assignment_subtyping(methodcall_type)){
+				result = "ERROR\n";
+				validator_msg.append("idenexp"+ curr_class+" "+curr_method+"not in this: lv and rv with different decl lv_name: " + lv_name+"\n");
+				}
+		}
+	
+	}
+			type=methodcall_type;
+			}
+			}
+		
+		curr_symbol_table = returnCurrTable(class_call);//error!!
 		if(curr_symbol_table != null) {
 			Scope curr_scope = curr_symbol_table.curr_scope;
 			for (Symb local : curr_scope.locals) {
@@ -497,13 +489,11 @@ public class ValidatorVisitor implements Visitor {
 				}
 			}
 		}
-	}
-	
-		//System.out.print(e.methodId());
-		//System.out.print(e.ownerExpr());
 		
-	
+	}
 
+	
+	
 	@Override
 	public void visit(IntegerLiteralExpr e) {
 		e.num();
@@ -511,6 +501,13 @@ public class ValidatorVisitor implements Visitor {
 		if (method_call) {
 		method_call_args.add("int");
 		}
+		if (is_assignStatement&&isActual==false&&is_newIntArray==false) {//check arrays
+			if(!type.equals(lv_decl)) {
+				result = "ERROR\n";
+				validator_msg.append("IntegerLiteralExpr "+ curr_class+" "+curr_method+"not in this: lv and rv with different decl lv_name: " + lv_name+"\n");
+		}	
+	}
+	
 	}
 
 	@Override
@@ -520,6 +517,12 @@ public class ValidatorVisitor implements Visitor {
 		if (method_call) {
 		method_call_args.add("bool");
 		}
+		if (is_assignStatement&&is_newIntArray==false) {
+			if(!type.equals(lv_decl)) {
+				result = "ERROR\n";
+				validator_msg.append("trueexp "+ curr_class+" "+curr_method+"not in this: lv and rv with different decl lv_name: " + lv_name+"\n");
+		}	
+	}	
 	}
 
 	@Override
@@ -529,11 +532,17 @@ public class ValidatorVisitor implements Visitor {
 		if (method_call) {
 		method_call_args.add("bool");
 		}
+		if (is_assignStatement&&is_newIntArray==false) {
+				if(!type.equals(lv_decl)) {
+					result = "ERROR\n";
+					validator_msg.append("falseexp"+ curr_class+" "+curr_method+" not in this: lv and rv with different decl lv_name: " + lv_name+"\n");
+			}	
+		}	
 	}
 
 	@Override
 	public void visit(IdentifierExpr e) {
-		String var_class;
+		String v_dec=null;
 		boolean found_var_in_class=false;
 		SymbolTable var_class_symbol_table=null;
 		boolean found_method=false;
@@ -547,19 +556,18 @@ public class ValidatorVisitor implements Visitor {
 						if(symbol.kind.equals(enumKind.method)||symbol.kind.equals(enumKind.method_extend)) {
 							if(!symbol.decl.equals("bool")) {
 								result = "ERROR\n";
-								//System.out.println("-----------------------"+"method "+symbol.name+" "+curr_class+" "+curr_method);
-								validator_msg.append(curr_class+" "+curr_method+ " cond in while or if statement is not boolean\n");
+								validator_msg.append("1 " +curr_class+" "+curr_method+ " cond in while or if statement is not boolean\n");
 							}}}}}
 			Scope scopeMethod = findCurrMethodScope(curr_scope,curr_method);
 			if (scopeMethod!=null) {
 				for (Symb local : scopeMethod.locals) {
 					if (local.name.equals(e.id()) && (local.kind.equals(enumKind.arg)||local.kind.equals(enumKind.var))) {
 						found_var_in_method = true;
+						v_dec=local.decl;
 						if (while_or_if && method_call==false&&is_exp==false) {//ex17
 							if(!local.decl.equals("bool")) {
 								result = "ERROR\n";
-								//System.out.println("-----------------------"+"var "+local.name);
-								validator_msg.append(curr_class+" "+curr_method+ " cond in while or if statement is not boolean\n");
+								validator_msg.append("2 "+curr_class+" "+curr_method+ " cond in while or if statement is not boolean\n");
 							}}
 						
 						if (isActual==true) {
@@ -568,9 +576,10 @@ public class ValidatorVisitor implements Visitor {
 						if (method_call==true && isActual==false) { //ex10
 							//find the static type of object inside current function
 							System.out.println(curr_class+" "+curr_method+" "+method_call_name);
-							var_class=methodCallValidation(local); 
-							if (var_class!=null) {
-							var_class_symbol_table = returnCurrTable(var_class);//ex11-find the var's of argument's class
+							call_var_class=methodCallValidation(local); 
+						
+							if (call_var_class!=null) {
+							var_class_symbol_table = returnCurrTable(call_var_class);//ex11-find the var's of argument's class
 							if (var_class_symbol_table!=null) {
 							Scope var_class_scope = var_class_symbol_table.curr_scope;
 							found_method=false;
@@ -613,21 +622,21 @@ public class ValidatorVisitor implements Visitor {
 					for (Symb local : curr_scope.locals) {
 							if (local.name.equals(e.id())&&(local.kind.equals(enumKind.field)||local.kind.equals(enumKind.field_extend))) {
 								found_var_in_class=true;
+								v_dec=local.decl;
 								if (while_or_if&&method_call==false&&is_exp==false) {//ex17
 									if(!local.decl.equals("bool")) {
-										//System.out.println("-----------------------"+local.name);
 										result = "ERROR\n";
-										validator_msg.append(curr_class+" "+curr_method+ " cond in while or if statement is not boolean\n");
+										validator_msg.append("3 "+curr_class+" "+curr_method+ " cond in while or if statement is not boolean\n");
 									}}
 								if (isActual==true) {
 									method_call_args.add(local.decl);
-									isActual=false;
+									
 								}
 							if (method_call==true&&isActual==false) {
-							System.out.println(curr_class+" "+curr_method+" "+method_call_name);
-							var_class=methodCallValidation(local);
-							if (var_class!=null) {
-							var_class_symbol_table = returnCurrTable(var_class);//ex11-find the var's or argument's class
+							
+							call_var_class=methodCallValidation(local);
+							if (call_var_class!=null) {
+							var_class_symbol_table = returnCurrTable(call_var_class);//ex11-find the var's or argument's class
 						}}
 							if (var_class_symbol_table!=null) {
 							Scope var_class_scope = var_class_symbol_table.curr_scope;
@@ -666,8 +675,16 @@ public class ValidatorVisitor implements Visitor {
 		}
 		if (found_var_in_method==false &&found_var_in_class==false) { //ex14
 			result = "ERROR\n";
-			//System.out.println("the var is not defined"+curr_class+" "+curr_method);
-			validator_msg.append("the var is not defined\n");
+			validator_msg.append(curr_class+" "+curr_method+"the var "+e.id()+" is not defined\n");
+			return;
+		}
+		if(is_assignStatement&method_call==false) { 
+		if(!v_dec.equals(lv_decl)) {
+			if (!check_assignment_subtyping(lv_decl)){
+			result = "ERROR\n";
+			validator_msg.append("idenexp "+ curr_class+" "+curr_method+"not in this: lv and rv with different decl lv_name: " + lv_name+"\n");
+			}	
+	}
 		}
 			
 	}
@@ -675,23 +692,21 @@ public class ValidatorVisitor implements Visitor {
 
 	public String methodCallValidation(Symb local) {
 			if(local.decl.equals("int") || local.decl.equals("bool") || local.decl.equals("int_array")) {
-				//countErrors++;
-				//System.out.println(countErrors);
 				result = "ERROR\n";
-				//System.out.println("the static type of the object is not a reference type\n");
-				validator_msg.append("the static type of the object is not a reference type\n");
+				validator_msg.append(curr_class+" "+curr_method+ " the static type of the object "+local.name+" is not a reference type\n");
 				return null;
 			}
 			else {
 				return local.decl;
 			}
+			
 	}
 	
 	public void lengthArrayVarValidation(Symb local) {
 		if(local.kind.equals(enumKind.var)) {
 			if(!local.decl.equals("int_array")) {
 				result = "ERROR\n";
-				validator_msg.append("The static type of the object on which length invoked is int[]\n");
+				validator_msg.append(curr_class+" "+curr_method+" The static type of the object "+local.name+" on which length invoked is int[]\n");
 			}
 		}
 	}
@@ -700,7 +715,7 @@ public class ValidatorVisitor implements Visitor {
 		if(local.kind.equals(enumKind.field) || local.kind.equals(enumKind.field_extend)) {
 			if(!local.decl.equals("int_array")) {
 				result = "ERROR\n";
-				validator_msg.append("The static type of the object on which length invoked is int[]\n");
+				validator_msg.append(curr_class+" "+curr_method+"The static type of the object on which length invoked is int[]\n");
 			}
 		}
 	}
@@ -709,7 +724,7 @@ public class ValidatorVisitor implements Visitor {
 		if(local.kind.equals(enumKind.var)) {
 			if(!local.decl.equals("int_array")) {
 				result = "ERROR\n";
-				validator_msg.append("array access/assign is not of type int[]\n");
+				validator_msg.append(curr_class+" "+curr_method+"array access/assign is not of type int[]\n");
 			}
 		}
 	}
@@ -718,7 +733,7 @@ public class ValidatorVisitor implements Visitor {
 		if(local.kind.equals(enumKind.field) || local.kind.equals(enumKind.field_extend)) {
 			if(!local.decl.equals("int_array")) {
 				result = "ERROR\n";
-				validator_msg.append("array access/assign is not of type int[]\n");
+				validator_msg.append(curr_class+" "+curr_method+"array access/assign is not of type int[]\n");
 			}
 		}
 	}
@@ -726,9 +741,8 @@ public class ValidatorVisitor implements Visitor {
 
 	@Override
 	public void visit(ThisExpr e) {
-		if (method_call==false) {
 		is_thisexp=true;
-		}
+		if( method_call==true) {
 		SymbolTable this_symbol_table=null;
 		boolean found_method=false;
 		this_symbol_table = returnCurrTable(curr_class);
@@ -738,35 +752,56 @@ public class ValidatorVisitor implements Visitor {
 		}
 		if (found_method==false) {
 			result = "ERROR\n";
-			validator_msg.append("in this: the function "+method_call_name+" is not defined in the class "+curr_class+"\n");
+			validator_msg.append(curr_class+" "+curr_method+" in this: the function "+method_call_name+" is not defined in the class "+curr_class+"\n");
+			}}
+		if (is_assignStatement&method_call==false) {
+		if(!curr_class.equals(lv_decl)) { //ex16 assignment with this a=this.func
+			if (!check_assignment_subtyping(lv_decl)){
+				result = "ERROR\n";
+				validator_msg.append(curr_class+" "+curr_method+" in this: lv and rv decls are different\n");
 			}
+	}}
+		is_thisexp=false;
+		call_var_class=curr_class;
 		}
 	
 				
 	@Override
 	public void visit(NewIntArrayExpr e) {
+		is_newIntArray=true;
 		e.lengthExpr().accept(this);
+		is_newIntArray=false;
 		if(!(type.equals("int"))) {
 			result = "ERROR\n";
-			validator_msg.append("In an array allocation new int[e], e is not an int.\n");
+			validator_msg.append(curr_class+" "+curr_method+"In an array allocation new int[e], e is not an int.\n");
 		}
+		if (is_assignStatement) {
+			if(!lv_decl.equals("int_array")) {
+				result = "ERROR\n";
+				validator_msg.append("intexp "+ curr_class+" "+curr_method+" not in this: lv and rv with different decl lv_name: " + lv_name+"\n");
+		}	
+	}
 	}
 
 	@Override
 	public void visit(NewObjectExpr e) {
-		//ex9
-		new_exp=true;
 		class_call = e.classId();
+		if(is_assignStatement) {
+			if(!class_call.equals(lv_decl)) { //ex16 assignment with new
+				result = "ERROR\n";
+				validator_msg.append(curr_class+" "+curr_method+" lv and rv with different decl lv_name:" + lv_name+"\n");		
+		}}
+		//ex9
 		SymbolTable curr_symbol_table = returnCurrTable(e.classId());
 		if (curr_symbol_table==null) {
 			result = "ERROR\n";
-			validator_msg.append("new object "+e.classId()+" that is defined somewhere in the file \n");
+			validator_msg.append(curr_class+" "+curr_method+ "new object "+e.classId()+" that is defined somewhere in the file \n");
 			return;
 		}
 		else {
 			if (!curr_symbol_table.curr_scope.type.equals(scopeType.type_class)) {
 				result = "ERROR\n";
-				validator_msg.append("new object "+e.classId()+" that is defined somewhere in the file \n");
+				validator_msg.append(curr_class+" "+curr_method+ "new object "+e.classId()+" that is defined somewhere in the file \n");
 				return;
 			}
 		}	
@@ -779,7 +814,7 @@ public class ValidatorVisitor implements Visitor {
 		//ex21
     	if(!(e_type.equals("bool"))) {
     		result = "ERROR\n";
-			validator_msg.append("The argument to the predefined operator is of the incorrect type.\n");
+			validator_msg.append("not "+ curr_class+" "+curr_method+"The argument to the predefined operator is of the incorrect type.\n");
     	}
     	type = "bool";
 	}
@@ -787,6 +822,12 @@ public class ValidatorVisitor implements Visitor {
 	@Override
 	public void visit(IntAstType t) {
 		type ="int";
+		if (is_assignStatement) {
+			if(!type.equals(lv_decl)) {
+				result = "ERROR\n";
+				validator_msg.append("intas_type "+ curr_class+" "+curr_method+"not in this: lv and rv with different decl lv_name: " + lv_name+"\n");
+		}	
+	}
 		
 	}
 
@@ -841,65 +882,77 @@ public class ValidatorVisitor implements Visitor {
     }
     public boolean check_args(Scope super_scope,int curr_num_of_args,ArrayList<String> args,String method_name) {
     	boolean found_method = false;
-    	for(Scope scope : super_scope.next) {
-			if(scope.type.equals(scopeType.method)) {
-				if(scope.name.equals(method_name)) {
-					found_method=true;
-					if(scope.num_of_args!=curr_num_of_args) {
+    	Scope method_scope;
+    	for (Symb local : super_scope.locals) {
+    		if(local.kind.equals(enumKind.method)||(local.kind.equals(enumKind.method_extend))) {
+    			if (local.name.equals(method_name)) {
+    				found_method=true;
+    			}
+    		}}
+    	if (found_method==false) {
+    		result = "ERROR\n";
+			validator_msg.append(curr_class+" "+curr_method+" "+ method_name+ "is not defiened\n");
+			return found_method;
+    	}
+    		
+		Scope s=super_scope;
+		method_scope=findCurrMethodScope(s,method_name);
+		if (method_scope==null) {
+		while(s.prev!=null) {
+			s = s.prev;
+			method_scope=findCurrMethodScope(s,method_name);
+			if (method_scope!=null) {
+				break;
+			}
+		}	
+		}
+					if(method_scope.num_of_args!=curr_num_of_args) {
 						result = "ERROR\n";
-						validator_msg.append("override method with diffrent number of arguments\n");
-						//System.out.println(scope.name+" "+curr_num_of_args+" "+scope.num_of_args);
+						validator_msg.append(curr_class+" "+curr_method+" override method with diffrent number of arguments\n");
 						return found_method;
 					}
-					else {
-						if (curr_num_of_args!=0) {
-						for(int i=0;i<curr_num_of_args;i++) {
-							for( Symb local : scope.locals) {
+					else if (curr_num_of_args!=0) {
+						int i=0;
+						while( i <curr_num_of_args) {
+							for(Symb local : method_scope.locals) {
 								if(local.kind.equals(enumKind.arg)) {
-									//System.out.println(curr_class+" "+curr_method+" "+scope.name+" "+curr_num_of_args+" "+scope.num_of_args);
-									//System.out.println(args);
+									System.out.println(local.decl);
+									System.out.println(args.get(i));
 									if(!local.decl.equals(args.get(i))) {
 										result = "ERROR\n";
-										//System.out.println(curr_method+" "+scope.name+" "+curr_num_of_args+" "+scope.num_of_args);
-										validator_msg.append(curr_method+" "+scope.name +" override method with diffrent type of arguments\n");
+										validator_msg.append(curr_class+" "+curr_method+" "+method_scope.name +" override method with diffrent type of arguments\n");
 										return found_method;
 									}
+									else {
+										i++;
+									}
+									}
 								}
-							}
-						}break;
-					}
+						}}
+					return found_method;
 				}
-			}	
-		}
-	
-    }
-return found_method;
-    }
 
-public void check_assignment_subtyping(String lv_decl){
-	boolean found_super_class=false;
+
+public boolean check_assignment_subtyping(String decl){
+	boolean found_super_class=false;  
 	if (is_thisexp) {
 	if (curr_super_class==null) {
-		result = "ERROR\n";
-		validator_msg.append("in this: lv and rv decls are different\n");
-		//System.out.println("in this");
-		return;
+		return false;
 			}
 	if (curr_super_class != null) {
-			if(!curr_super_class.equals(lv_decl)) {
+			if(!curr_super_class.equals(decl)) {
 				SymbolTable super_symbol_table = returnCurrTable(curr_super_class);
 				Scope s=super_symbol_table.curr_scope;
 				while(s.prev!=null) {
 					s = s.prev;
-					if((s.name).equals(lv_decl)) {
+					if((s.name).equals(decl)) {
 						found_super_class = true;
 						break;
 					}	
 }
 				if(found_super_class==false) {
-					result = "ERROR\n";
-					validator_msg.append("in this: lv and rv decls are different\n");
-					//System.out.println("in this");
+					return false;
+					
 				}
 }}}
 	else if (!(type.equals("bool")||type.equals("int")||type.equals("int_array"))) {
@@ -907,17 +960,28 @@ public void check_assignment_subtyping(String lv_decl){
 		Scope s=super_symbol_table.curr_scope;
 		while(s.prev!=null) {
 			s = s.prev;
-			if((s.name).equals(lv_decl)) {
+			if((s.name).equals(decl)) {
 				found_super_class = true;
 				break;
 			}	
 }
 		if(found_super_class==false) {
-			result = "ERROR\n";
-			validator_msg.append("not in this : lv and rv decls are different\n");
-			//System.out.println("not in this");
+			return false;
+			
+			
 		}
 	}
-	}}
+	return true;
+	}
+
+}
 
 
+//else if(lv_decl!=null) {//error!!(function and assignment)
+//	if(!type.equals(lv_decl)) {
+//		if (!check_assignment_subtyping(lv_decl)){
+//		result = "ERROR\n";
+//		validator_msg.append(curr_class+" "+curr_method+"not in this: lv and rv with different decl lv_name: " + lv_name+"\n");
+//		}	
+//}
+//	}

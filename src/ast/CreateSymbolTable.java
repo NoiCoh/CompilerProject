@@ -335,7 +335,7 @@ public class CreateSymbolTable implements Visitor {
     	Symb check=curr_symbol_table.addSymbol(curr_name, t.id(), curr_kind, curr_symbol_table.curr_scope.name,vtable_index);
     	if (check==null) {
     		validator = false;
-        	validator_msg.append("same name cannot be used for the same var in the method"+curr_name+"\n");
+        	validator_msg.append("blaaaa same name cannot be used for the same var in the method "+curr_name+"\n");
     	}
     	curr_name = "";
     	curr_kind = enumKind.empty;
