@@ -761,7 +761,9 @@ public class ValidatorVisitor implements Visitor {
 			SymbolTable this_symbol_table=null;
 			boolean found_method=false;
 			this_symbol_table = returnCurrTable(curr_class);
-		
+			if (isActual) {
+				method_call_args.add(curr_class);
+			}
 			if(this_symbol_table != null) {
 				found_method=check_args(this_symbol_table.curr_scope,num_of_actuals,method_call_args,method_call_name);
 			}
@@ -769,6 +771,7 @@ public class ValidatorVisitor implements Visitor {
 				result = "ERROR\n";
 				validator_msg.append(curr_class+" "+curr_method+" in this: the function "+method_call_name+" is not defined in the class "+curr_class+"\n");
 			}
+		
 		}
 		if (is_assignStatement&method_call==false) {
 			if(!curr_class.equals(lv_decl)) { //ex16 assignment with this a=this.func
@@ -978,6 +981,9 @@ public class ValidatorVisitor implements Visitor {
 									result = "ERROR\n";
 									validator_msg.append(curr_class+" "+curr_method+"override method with diffrent return type\n");
 									return false;
+								}
+								else {
+									i++;
 								}
 							}
 						}
