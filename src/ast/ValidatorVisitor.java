@@ -468,6 +468,12 @@ public class ValidatorVisitor implements Visitor {
 					}
 				}
 			}
+			if(length_call) {
+				if(!type.equals("int_array")) {
+					result = "ERROR\n";
+					validator_msg.append(curr_class+" "+curr_method+" The static type of the object on which length invoked is int[]\n");
+				}
+			}
 		}
 		method_call=false;
 		call_var_class=null;
@@ -595,7 +601,7 @@ public class ValidatorVisitor implements Visitor {
 								}	
 							}
 						}
-						else if(length_call==true){//ex13
+						else if(length_call==true&&method_call==false){//ex13
 							lengthArrayVarValidation(local);
 						}
 						else if(array_call==true) {//ex22
@@ -650,7 +656,7 @@ public class ValidatorVisitor implements Visitor {
 								}
 							}					
 							if (local.name.equals(e.id())) {
-								if(length_call==true) {//ex13
+								if(length_call==true&&method_call==false) {//ex13
 									lengthArrayFieldValidation(local);
 								}
 								else if(array_call==true) {//ex22
