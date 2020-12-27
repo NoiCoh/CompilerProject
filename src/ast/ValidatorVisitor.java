@@ -370,7 +370,7 @@ public class ValidatorVisitor implements Visitor {
 		visitBinaryExpr(e,"&&");
 		if (!is_boolean_exp) {
 			result = "ERROR\n";
-			validator_msg.append(curr_class+" "+curr_method+"&& expression in if or while is not boolean\n");
+			validator_msg.append(curr_class+" "+curr_method+" && expression is not boolean\n");
 		}
 		is_boolean_exp=false;
 		is_exp=false;
@@ -383,7 +383,7 @@ public class ValidatorVisitor implements Visitor {
 		visitBinaryExpr(e,"<");
 		if (!is_boolean_exp) {
 			result = "ERROR\n";
-			validator_msg.append(curr_class+" "+curr_method+"< expression in if or while is not boolean\n");
+			validator_msg.append(curr_class+" "+curr_method+"< expression is not boolean\n");
 		}
 		is_boolean_exp=false;
 		is_exp=false;
