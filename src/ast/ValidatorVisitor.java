@@ -805,7 +805,7 @@ public class ValidatorVisitor implements Visitor {
 		if(method_call&&isActual) {
 			method_call_args.add(class_call);
 		}
-		if(is_assignStatement) {
+		if(is_assignStatement&&method_call==false) {
 			if(!class_call.equals(lv_decl)) {//ex16 assignment with new
 				SymbolTable new_class_sym_table = returnCurrTable(class_call);
 				if (new_class_sym_table==null) {
