@@ -60,7 +60,6 @@ public class ValidatorVisitor implements Visitor {
         		result = "ERROR\n";
 				validator_msg.append("in class: " + curr_class+" in method: "+curr_method+" the arguments to the predefined operators are of the incorrect type.\n");
         	}
-        	
         	else {
         		is_boolean_exp=true;
         	}
@@ -75,7 +74,6 @@ public class ValidatorVisitor implements Visitor {
         		is_boolean_exp=true;
         	}
         	type ="bool";
-        
         }
         else {
         	if(!(e1_type.equals("int") && e2_type.equals("int"))) {
@@ -113,8 +111,7 @@ public class ValidatorVisitor implements Visitor {
 		//check sys args in mainClass
 		mainClass.name();
 	    mainClass.argsName();
-	    mainClass.mainStatement().accept(this);
-	    
+	    mainClass.mainStatement().accept(this); 
 	}
 
 	@Override
@@ -177,7 +174,6 @@ public class ValidatorVisitor implements Visitor {
 								}
 							}
 							check_args(super_scope,curr_num_of_args,args,curr_method);
-
 						}
 					}
 				}
@@ -263,8 +259,6 @@ public class ValidatorVisitor implements Visitor {
         }
         while_or_if=false;
         whileStatement.body().accept(this);
-        
-		
 	}
 
 	@Override
@@ -282,11 +276,8 @@ public class ValidatorVisitor implements Visitor {
 	public void visit(AssignStatement assignStatement) {
 		is_assignStatement=true;
 		lv_name=assignStatement.lv();
-		String var_class;
 		boolean found_var_in_class=false;
-		SymbolTable var_class_symbol_table=null;
-		boolean found_method=false;
-		Boolean found_var_in_method = false;
+		boolean found_var_in_method = false;
 		SymbolTable curr_symbol_table = returnCurrTable(curr_class);
 		if(curr_symbol_table != null) {
 			Scope curr_scope = curr_symbol_table.curr_scope;
@@ -296,7 +287,7 @@ public class ValidatorVisitor implements Visitor {
 					if (local.name.equals(lv_name) && (local.kind.equals(enumKind.arg)||local.kind.equals(enumKind.var))) {
 						found_var_in_method = true;
 						lv_decl=local.decl;
-					
+						break;
 					}
 				}
 				if (found_var_in_method==false) {
@@ -441,11 +432,10 @@ public class ValidatorVisitor implements Visitor {
 	@Override
 	public void visit(MethodCallExpr e) {
 		method_call_args.clear();
-		method_call_name=null;
+		method_call_name=e.methodId();
+		num_of_actuals=e.actuals().size();
 		method_call=true;
 		methodcall_type=null;
-		num_of_actuals=e.actuals().size();
-		method_call_name=e.methodId();
 	    for (Expr arg : e.actuals()) {
 	    	isActual=true;
 	        arg.accept(this); 
@@ -462,7 +452,7 @@ public class ValidatorVisitor implements Visitor {
 		if(curr_symbol_table != null) {
 			Scope curr_scope = curr_symbol_table.curr_scope;
 			for (Symb symbol : curr_scope.locals) {
-				if(symbol.name.equals(method_call_name)) {
+				if(symbol.name.equals(e.methodId())) {
 					if(symbol.kind.equals(enumKind.method)||symbol.kind.equals(enumKind.method_extend)) {
 						methodcall_type = symbol.decl;
 						type=methodcall_type;
@@ -485,7 +475,7 @@ public class ValidatorVisitor implements Visitor {
 						if(lv_decl.equals("int") || lv_decl.equals("bool") || lv_decl.equals("int_array") ||
 								methodcall_type.equals("int") || methodcall_type.equals("bool") || methodcall_type.equals("int_array")) {
 							result = "ERROR\n";
-							validator_msg.append("idenexp"+ curr_class+" "+curr_method+"not in this: lv and rv with different decl lv_name: " + lv_name+"\n");
+							validator_msg.append("idenexp "+ curr_class+" "+curr_method+" not in this: lv and rv with different decl lv_name: " + lv_name+"\n");
 							method_call=false;
 							call_var_class=null;
 							return;
@@ -569,43 +559,81 @@ public class ValidatorVisitor implements Visitor {
 
 	@Override
 	public void visit(IdentifierExpr e) {
-		String v_dec=null;
-		boolean found_var_in_class=false;
 		SymbolTable var_class_symbol_table=null;
 		boolean found_method=false;
-		Boolean found_var_in_method = false;
+		boolean found_var_in_class=false;
+		boolean found_var_in_method = false;
+		
 		SymbolTable curr_symbol_table = returnCurrTable(curr_class);
 		if(curr_symbol_table != null) {
 			Scope curr_scope = curr_symbol_table.curr_scope;
 			if (while_or_if&&method_call==true&&is_exp==false&&isActual==false) {//ex17
 				for (Symb symbol : curr_scope.locals) {
-					if(symbol.name.equals(method_call_name)) {
-						if(symbol.kind.equals(enumKind.method)||symbol.kind.equals(enumKind.method_extend)) {
-							if(!symbol.decl.equals("bool")) {
-								result = "ERROR\n";
-								validator_msg.append("1 " +curr_class+" "+curr_method+ " cond in while or if statement is not boolean\n");
-								return;
-							}
-						}
-					}
+					ValidateWhileOrIF(symbol, method_call_name);
 				}
 			}
 			Scope scopeMethod = findCurrMethodScope(curr_scope,curr_method);
 			if (scopeMethod!=null) {
 				for (Symb local : scopeMethod.locals) {
-					if (local.name.equals(e.id()) && (local.kind.equals(enumKind.arg)||local.kind.equals(enumKind.var))) {
-						found_var_in_method = true;
-						v_dec=local.decl;	
-						if (isActual==true) {
-							method_call_args.add(local.decl);
+					if (local.name.equals(e.id())){		
+						if(local.kind.equals(enumKind.arg)||local.kind.equals(enumKind.var)) {
+							found_var_in_method = true;
+							//v_dec=local.decl;	
+							if (isActual==true) {
+								method_call_args.add(local.decl);
+							}
+							if (method_call==true && isActual==false) { //ex10
+								//find the static type of object inside current function
+								//System.out.println(curr_class+" "+curr_method+" "+method_call_name);
+								call_var_class=methodCallValidation(local); 	
+								if (call_var_class!=null) {
+									var_class_symbol_table = returnCurrTable(call_var_class);//ex11-find the var's of argument's class
+									if (var_class_symbol_table!=null) {
+										Scope var_class_scope = var_class_symbol_table.curr_scope;
+										found_method=false;
+										for (Symb l : var_class_scope.locals) {// find the method call name in class
+											if (l.kind.equals(enumKind.method) || l.kind.equals(enumKind.method_extend)) {
+												if (l.name.equals(method_call_name)) {
+													found_method=true;
+													check_args(var_class_scope,num_of_actuals,method_call_args,method_call_name);
+													break;
+												}
+											}
+										}
+									}
+									if (found_method==false&&method_call==true ) {
+										result = "ERROR\n";
+										validator_msg.append("the function "+method_call_name+" is not defined in the class "+curr_class+"\n");
+									}	
+								}
+							}
 						}
-						if (method_call==true && isActual==false) { //ex10
-							//find the static type of object inside current function
-							//System.out.println(curr_class+" "+curr_method+" "+method_call_name);
-							call_var_class=methodCallValidation(local); 
-					
-							if (call_var_class!=null) {
-								var_class_symbol_table = returnCurrTable(call_var_class);//ex11-find the var's of argument's class
+						if(length_call==true&&method_call==false){//ex13
+							lengthArrayVarValidation(local);
+						}
+						if(array_call==true) {//ex22
+							callArrayVarValidation(local);
+						}
+						type = local.decl;
+						call_var_class = local.decl;
+						break;
+					}
+				}	
+				if(found_var_in_method == false) {
+					for (Symb local : curr_scope.locals) {
+						if (local.name.equals(e.id())){
+							if(local.kind.equals(enumKind.field)||local.kind.equals(enumKind.field_extend)) {
+								found_var_in_class=true;
+								//v_dec=local.decl;
+								if (isActual==true) {
+									method_call_args.add(local.decl);	
+								}
+								if (method_call==true&&isActual==false) {
+									call_var_class=methodCallValidation(local);
+									if (call_var_class!=null) {
+										var_class_symbol_table = returnCurrTable(call_var_class);//ex11-find the var's or argument's class
+									}
+								}
 								if (var_class_symbol_table!=null) {
 									Scope var_class_scope = var_class_symbol_table.curr_scope;
 									found_method=false;
@@ -618,68 +646,20 @@ public class ValidatorVisitor implements Visitor {
 											}
 										}
 									}
-								}
-								if (found_method==false&&method_call==true ) {
-									result = "ERROR\n";
-									validator_msg.append("the function "+method_call_name+" is not defined in the class "+curr_class+"\n");
-								}	
-							}
-						}
-						else if(length_call==true&&method_call==false){//ex13
-							lengthArrayVarValidation(local);
-						}
-						else if(array_call==true) {//ex22
-							callArrayVarValidation(local);
-						}
-						else {
-							type = local.decl;
-						}
-						break;
-					}
-				}	
-				if(found_var_in_method == false) {
-					for (Symb local : curr_scope.locals) {
-						if (local.name.equals(e.id())&&(local.kind.equals(enumKind.field)||local.kind.equals(enumKind.field_extend))) {
-							found_var_in_class=true;
-							v_dec=local.decl;
-							if (isActual==true) {
-								method_call_args.add(local.decl);	
-							}
-							if (method_call==true&&isActual==false) {
-								call_var_class=methodCallValidation(local);
-								if (call_var_class!=null) {
-									var_class_symbol_table = returnCurrTable(call_var_class);//ex11-find the var's or argument's class
-								}
-							}
-							if (var_class_symbol_table!=null) {
-								Scope var_class_scope = var_class_symbol_table.curr_scope;
-								found_method=false;
-								for (Symb l : var_class_scope.locals) {// find the method call name in class
-									if (l.kind.equals(enumKind.method) || l.kind.equals(enumKind.method_extend)) {
-										if (l.name.equals(method_call_name)) {
-											found_method=true;
-											check_args(var_class_scope,num_of_actuals,method_call_args,method_call_name);
-											break;
-										}
+									if (found_method==false&&method_call==true) {
+										result = "ERROR\n";
+										validator_msg.append("the function "+method_call_name+" is not defined in the class "+curr_class+"\n");
 									}
 								}
-								if (found_method==false&&method_call==true) {
-									result = "ERROR\n";
-									validator_msg.append("the function "+method_call_name+" is not defined in the class "+curr_class+"\n");
-								}
 							}
-						}					
-						if (local.name.equals(e.id())) {
-							if(length_call==true&&method_call==false) {//ex13
-								lengthArrayFieldValidation(local);
-							}
-							else if(array_call==true) {//ex22
+							if(array_call==true) {//ex22
 								callArrayFieldValidation(local);
 							}
-							else {
-								type = local.decl;
-							}
-							break;
+							if(length_call==true&&method_call==false) {//ex13
+								lengthArrayFieldValidation(local);
+							}	
+							type = local.decl;
+							call_var_class = local.decl;
 						}
 					}
 				}
@@ -691,14 +671,17 @@ public class ValidatorVisitor implements Visitor {
 			is_error=true;
 			return;
 		}
+		else {
+			
+		}
 		if(is_assignStatement&method_call==false&&is_exp==false) { 
-			if(!v_dec.equals(lv_decl)) {
+			if(!type.equals(lv_decl)) {
 				if (!check_assignment_subtyping(lv_decl)){
 					result = "ERROR\n";
 					validator_msg.append("idenexp "+ curr_class+" "+curr_method+"not in this: lv and rv with different decl lv_name: " + lv_name+"\n");
 				}	
 			}
-		}	
+		}
 	}
 	
 
@@ -753,21 +736,19 @@ public class ValidatorVisitor implements Visitor {
 	@Override
 	public void visit(ThisExpr e) {
 		is_thisexp=true;
-		if( method_call==true) {
-			SymbolTable this_symbol_table=null;
+		if(method_call==true) {
+			SymbolTable this_symbol_table=returnCurrTable(curr_class);
 			boolean found_method=false;
-			this_symbol_table = returnCurrTable(curr_class);
 			if (isActual) {
 				method_call_args.add(curr_class);
 			}
-			if(this_symbol_table != null) {
+			else if(this_symbol_table != null) {
 				found_method=check_args(this_symbol_table.curr_scope,num_of_actuals,method_call_args,method_call_name);
-			}
-			if (found_method==false) {
-				result = "ERROR\n";
-				validator_msg.append(curr_class+" "+curr_method+" in this: the function "+method_call_name+" is not defined in the class "+curr_class+"\n");
-			}
-		
+				if (found_method==false) {
+					result = "ERROR\n";
+					validator_msg.append(curr_class+" "+curr_method+" in this: the function "+method_call_name+" is not defined in the class "+curr_class+"\n");
+				}	
+			}		
 		}
 		if (is_assignStatement&method_call==false) {
 			if(!curr_class.equals(lv_decl)) { //ex16 assignment with this a=this.func
@@ -928,12 +909,13 @@ public class ValidatorVisitor implements Visitor {
     		if(local.kind.equals(enumKind.method)||(local.kind.equals(enumKind.method_extend))) {
     			if (local.name.equals(method_name)) {
     				found_method=true;
+    				break;
     			}
     		}
     	}
     	if (found_method==false) {
     		result = "ERROR\n";
-			validator_msg.append("in class: " + curr_class+" in method: "+curr_method+" the method: "+ method_name+ " is not defiened\n");
+			validator_msg.append("in class: " + curr_class+" in method: "+curr_method+" the method: "+ method_name+ " is not defiened in " + super_scope.name + "\n");
 			return found_method;
     	}
     		
@@ -1034,8 +1016,20 @@ public class ValidatorVisitor implements Visitor {
 			}
 		}
 		return true;
+	}
+	
+	public void ValidateWhileOrIF(Symb symbol, String method_name) {
+		if(symbol.name.equals(method_name)) {
+			if(symbol.kind.equals(enumKind.method)||symbol.kind.equals(enumKind.method_extend)) {
+				if(!symbol.decl.equals("bool")) {
+					result = "ERROR\n";
+					validator_msg.append("in class: " +curr_class+" in method: "+curr_method+ " cond in while or if statement is not boolean\n");
+				}
+			}
 		}
 	}
+	
+}
 
 
 //else if(lv_decl!=null) {//error!!(function and assignment)

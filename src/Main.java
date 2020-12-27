@@ -53,7 +53,7 @@ public class Main {
                         // for testing only - remove in submission.
                         System.out.println(validator.getValidatorMsg());
                         
-                        ValidatorInitialization validatorInit = new ValidatorInitialization(validator.getResult());
+                        ValidatorInitialization validatorInit = new ValidatorInitialization(validator.getResult(), symbol_tables);
                         validatorInit.visit(prog);
                         outFile.write(validatorInit.getResult());
                         // for testing only - remove in submission.

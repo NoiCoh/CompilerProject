@@ -212,7 +212,9 @@ public class SymbolTable {
 					return false;
 				}
 				if (sy.name.equals(otherSymbol.name)) {
-					return false;
+					if(sy.kind.equals(otherSymbol.kind)) {
+						return false;
+					}
 				}
 			}
 			this.locals.add(sy);
