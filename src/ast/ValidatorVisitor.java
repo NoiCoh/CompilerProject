@@ -441,6 +441,8 @@ public class ValidatorVisitor implements Visitor {
 	        isActual=false;
 	    }
 	    if(is_error) {
+	    	method_call=false;
+			call_var_class=null;
 	    	return;
 	    }
 	    method_call=true;
@@ -469,7 +471,15 @@ public class ValidatorVisitor implements Visitor {
 			if (methodcall_type!=null) {
 				if(is_assignStatement&&isActual==false) {
 					if(!methodcall_type.equals(lv_decl)) {
-						if (!check_assignment_subtyping(methodcall_type)){
+						if(lv_decl.equals("int") || lv_decl.equals("bool") || lv_decl.equals("int_array") ||
+								methodcall_type.equals("int") || methodcall_type.equals("bool") || methodcall_type.equals("int_array")) {
+							result = "ERROR\n";
+							validator_msg.append("idenexp"+ curr_class+" "+curr_method+"not in this: lv and rv with different decl lv_name: " + lv_name+"\n");
+							method_call=false;
+							call_var_class=null;
+							return;
+						}
+						else if(!check_assignment_subtyping(methodcall_type)){
 							result = "ERROR\n";
 							validator_msg.append("idenexp"+ curr_class+" "+curr_method+"not in this: lv and rv with different decl lv_name: " + lv_name+"\n");
 						}
