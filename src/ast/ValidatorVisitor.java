@@ -264,11 +264,12 @@ public class ValidatorVisitor implements Visitor {
 	@Override
 	public void visit(SysoutStatement sysoutStatement) {
 		sysoutStatement.arg().accept(this);
-        if(!type.equals("int")) {
-			result = "ERROR\n";
-			validator_msg.append(curr_class+" "+curr_method+"The argument to System.out.println is of type int\n");
+		if(type != null) {
+	        if(!type.equals("int")) {
+				result = "ERROR\n";
+				validator_msg.append(curr_class+" "+curr_method+"The argument to System.out.println is of type int\n");
+			}
 		}
-		
 	}
 
 	@Override
