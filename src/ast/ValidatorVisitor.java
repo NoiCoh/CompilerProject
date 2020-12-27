@@ -1035,14 +1035,12 @@ public class ValidatorVisitor implements Visitor {
 		}
 		return true;
 		}
+	
+
+
+	public boolean check_if_type_exist(String type) {
+		return true;
 	}
-
-
-//else if(lv_decl!=null) {//error!!(function and assignment)
-//	if(!type.equals(lv_decl)) {
-//		if (!check_assignment_subtyping(lv_decl)){
-//		result = "ERROR\n";
-//		validator_msg.append(curr_class+" "+curr_method+"not in this: lv and rv with different decl lv_name: " + lv_name+"\n");
-//		}	
-//}
-//	}
+		
+	
+}
