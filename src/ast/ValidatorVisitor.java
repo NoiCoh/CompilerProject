@@ -34,6 +34,7 @@ public class ValidatorVisitor implements Visitor {
 	String lv_name;
 	boolean is_thisexp=false;
 	boolean is_newIntArray=false;
+	boolean is_error=false;
 	
 	
 	
@@ -438,6 +439,9 @@ public class ValidatorVisitor implements Visitor {
 	        arg.accept(this); 
 	        isActual=false;
 	    }
+	    if(is_error) {
+	    	return;
+	    }
 	    method_call=true;
 		e.ownerExpr().accept(this);
 		SymbolTable curr_symbol_table = returnCurrTable(call_var_class);
@@ -675,6 +679,7 @@ public class ValidatorVisitor implements Visitor {
 			if (found_var_in_method==false &&found_var_in_class==false) { //ex14
 				result = "ERROR\n";
 				validator_msg.append(curr_class+" "+curr_method+"the var "+e.id()+" is not defined\n");
+				is_error=true;
 				return;
 			}
 			if(is_assignStatement&method_call==false&&is_exp==false) { 
