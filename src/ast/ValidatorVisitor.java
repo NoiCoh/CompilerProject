@@ -480,7 +480,7 @@ public class ValidatorVisitor implements Visitor {
 				method_call_args.add(methodcall_type);
 			}
 			if (methodcall_type!=null) {
-				if(is_assignStatement&&isActual==false) {
+				if(is_assignStatement&&isActual==false&&is_newIntArray==false) {
 					if(!methodcall_type.equals(lv_decl)) {
 						if(lv_decl.equals("int") || lv_decl.equals("bool") || lv_decl.equals("int_array") ||
 								methodcall_type.equals("int") || methodcall_type.equals("bool") || methodcall_type.equals("int_array")) {
