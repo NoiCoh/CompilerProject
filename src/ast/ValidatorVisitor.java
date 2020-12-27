@@ -311,12 +311,15 @@ public class ValidatorVisitor implements Visitor {
 			if(found_var_in_method==false&&found_var_in_class==false) {
 				result = "ERROR\n";
 				validator_msg.append(curr_class+" "+curr_method+" lv"+lv_name+ " is not defiend\n");
+				return;
 			}
 		}
 		assignStatement.rv().accept(this);
-		if(!type.equals(lv_decl)) {
-			result = "ERROR\n";
-			validator_msg.append("in class: " + curr_class+" in method: "+curr_method+" not in this: lv and rv with different decl lv_name: " + lv_name+"\n");
+		if(lv_decl!=null && (lv_decl.equals("int") || lv_decl.equals("bool") || lv_decl.equals("int_array"))) {
+			if(!type.equals(lv_decl)) {
+				result = "ERROR\n";
+				validator_msg.append("in class: " + curr_class+" in method: "+curr_method+" lv and rv with different type\n");
+			}
 		}
 		
 		is_assignStatement=false;
@@ -598,7 +601,7 @@ public class ValidatorVisitor implements Visitor {
 						}
 						if (method_call==true && isActual==false) { //ex10
 							//find the static type of object inside current function
-							System.out.println(curr_class+" "+curr_method+" "+method_call_name);
+							//System.out.println(curr_class+" "+curr_method+" "+method_call_name);
 							call_var_class=methodCallValidation(local); 
 					
 							if (call_var_class!=null) {
