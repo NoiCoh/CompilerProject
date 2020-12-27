@@ -120,7 +120,9 @@ public class ValidatorInitialization implements Visitor {
         ArrayList<String> after_if = new ArrayList<String>(initVarMethod);
         
         initVarMethod = new ArrayList<String>(before);
-        ifStatement.elsecase().accept(this);
+        if(ifStatement.elsecase()!=null) {
+        	ifStatement.elsecase().accept(this);
+        }
         ArrayList<String> after_else = new ArrayList<String>(initVarMethod);
         
         initVarMethod = joinArray(after_if, after_else);

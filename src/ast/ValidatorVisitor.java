@@ -247,7 +247,9 @@ public class ValidatorVisitor implements Visitor {
         }
         while_or_if=false;
         ifStatement.thencase().accept(this);
-        ifStatement.elsecase().accept(this);
+        if(ifStatement.elsecase()!=null) {
+        	ifStatement.elsecase().accept(this);
+        }
         
 	}
 

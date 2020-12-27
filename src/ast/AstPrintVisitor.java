@@ -149,7 +149,8 @@ public class AstPrintVisitor implements Visitor {
         indent--;
         appendWithIndent("else\n");
         indent++;
-        ifStatement.elsecase().accept(this);
+        if( ifStatement.elsecase()!=null) {
+        ifStatement.elsecase().accept(this);}
         indent--;
     }
 

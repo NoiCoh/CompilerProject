@@ -164,7 +164,8 @@ public class CreateSymbolTable implements Visitor {
     	//ifStatement.scope = curr_symbol_table.curr_scope;
         ifStatement.cond().accept(this);
         ifStatement.thencase().accept(this);
-        ifStatement.elsecase().accept(this);
+        if(ifStatement.elsecase()!=null) {
+        ifStatement.elsecase().accept(this);}
         curr_symbol_table.closeScope();
     }
 
