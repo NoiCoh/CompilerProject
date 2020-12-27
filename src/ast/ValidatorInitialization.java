@@ -32,10 +32,10 @@ public class ValidatorInitialization implements Visitor {
 
     @Override
     public void visit(Program program) {
-        program.mainClass().accept(this);
         for (ClassDecl classdecl : program.classDecls()) {
             classdecl.accept(this);
         }
+        program.mainClass().accept(this);
     }
 
     @Override
@@ -58,8 +58,10 @@ public class ValidatorInitialization implements Visitor {
 
     @Override
     public void visit(MainClass mainClass) {
-        mainClass.name();
-        mainClass.argsName();
+    	curr_class = mainClass.name();
+    	initVar = new ArrayList<String>();
+    	initVarMethod = new ArrayList<String>(initVar);
+    	initVarMethod.add(mainClass.argsName());
         mainClass.mainStatement().accept(this);
     }
 
@@ -141,17 +143,21 @@ public class ValidatorInitialization implements Visitor {
     @Override
     public void visit(AssignStatement assignStatement) {
         assignStatement.rv().accept(this);
-        if(!initVarMethod.contains(assignStatement.lv())) {
-        	initVarMethod.add(assignStatement.lv());
-        }  
+        if(initVarMethod != null) {
+        	if(!initVarMethod.contains(assignStatement.lv())) {
+            	initVarMethod.add(assignStatement.lv());
+            }
+        }   
     }
 
     @Override
     public void visit(AssignArrayStatement assignArrayStatement) {
-        if(!initVarMethod.contains(assignArrayStatement.lv())){
-    		result = "ERROR\n";
-			validator_msg.append(assignArrayStatement.lv() +" array is not initialized in " + curr_method + "\n");
-        }
+    	if(initVarMethod != null) {
+    		if(!initVarMethod.contains(assignArrayStatement.lv())){
+        		result = "ERROR\n";
+    			validator_msg.append(assignArrayStatement.lv() +" array is not initialized in " + curr_method + "\n");
+            }
+    	}
         assignArrayStatement.index().accept(this);
         assignArrayStatement.rv().accept(this);
     }
@@ -261,12 +267,16 @@ public class ValidatorInitialization implements Visitor {
     
     public ArrayList<String> joinArray(ArrayList<String> list1, ArrayList<String> list2) {
     	ArrayList<String> list = new ArrayList<String>();
-
-        for (String str : list1) {
-            if(list2.contains(str)) {
-                list.add(str);
+    	if(list1.isEmpty() || list2.isEmpty()) {
+    		return list;
+    	}
+    	else {
+    		for (String str : list1) {
+                if(list2.contains(str)) {
+                    list.add(str);
+                }
             }
-        }
+    	}
         return list;
     }
     
