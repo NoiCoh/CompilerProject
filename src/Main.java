@@ -50,8 +50,14 @@ public class Main {
                 	else {
                 		ValidatorVisitor validator = new ValidatorVisitor(symbol_tables);
                         validator.visit(prog);
-                        outFile.write(validator.getResult());
+                        // for testing only - remove in submission.
                         System.out.println(validator.getValidatorMsg());
+                        
+                        ValidatorInitialization validatorInit = new ValidatorInitialization(validator.getResult());
+                        validatorInit.visit(prog);
+                        outFile.write(validatorInit.getResult());
+                        // for testing only - remove in submission.
+                        System.out.println(validatorInit.getValidatorMsg());
                 	}
                 } else if (action.equals("compile")) {
                 	LLVMVisitor llPrinter = new LLVMVisitor(symbol_tables);
