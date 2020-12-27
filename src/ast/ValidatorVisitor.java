@@ -439,37 +439,25 @@ public class ValidatorVisitor implements Visitor {
 	    }
 	    method_call=true;
 		e.ownerExpr().accept(this);
-		if (while_or_if==true&&call_var_class!=null) {
-			SymbolTable curr_symbol_table = returnCurrTable(call_var_class);//check
-			if(curr_symbol_table != null) {
-				Scope curr_scope = curr_symbol_table.curr_scope;
-				for (Symb symbol : curr_scope.locals) {
-					if(symbol.name.equals(method_call_name)) {
-						if(symbol.kind.equals(enumKind.method)||symbol.kind.equals(enumKind.method_extend)) {
-							if(!symbol.decl.equals("bool")) {
-								result = "ERROR\n";
-								validator_msg.append("4 "+curr_class+" "+curr_method+ " cond in while or if statement is not boolean\n");
-							}
-						}
-					}
-				}
-			}
-		}
-		method_call=false;
-
-		SymbolTable curr_symbol_table = returnCurrTable(call_var_class);//error!!! before-class_call
+		SymbolTable curr_symbol_table = returnCurrTable(call_var_class);
 		if(curr_symbol_table != null) {
 			Scope curr_scope = curr_symbol_table.curr_scope;
-			for (Symb local : curr_scope.locals) {
-				if (local.name.equals(e.methodId())) {
-					methodcall_type = local.decl;
-					if (isActual==true) {
-						method_call_args.add(methodcall_type);
-					}
-					break;
+			for (Symb symbol : curr_scope.locals) {
+				if(symbol.name.equals(method_call_name)) {
+					if(symbol.kind.equals(enumKind.method)||symbol.kind.equals(enumKind.method_extend)) {
+						methodcall_type = symbol.decl;
+						type=methodcall_type;
+						break;
+					}}}
+			if (while_or_if==true&&call_var_class!=null) {
+				if(!methodcall_type.equals("bool")) {
+					result = "ERROR\n";
+					validator_msg.append("4 "+curr_class+" "+curr_method+ " cond in while or if statement is not boolean\n");
 				}
 			}
-			call_var_class=null;
+			if (isActual==true) {
+				method_call_args.add(methodcall_type);
+			}
 			if (methodcall_type!=null) {
 				if(is_assignStatement&&isActual==false) {
 					if(!methodcall_type.equals(lv_decl)) {
@@ -479,22 +467,12 @@ public class ValidatorVisitor implements Visitor {
 						}
 					}
 				}
-				type=methodcall_type;
 			}
 		}
-		curr_symbol_table = returnCurrTable(class_call);//error!!
-		if(curr_symbol_table != null) {
-			Scope curr_scope = curr_symbol_table.curr_scope;
-			for (Symb local : curr_scope.locals) {
-				if (local.name.equals(e.methodId())) {
-					type = local.decl;
-					break;
-				}
-			}
-		}		
+		method_call=false;
+		call_var_class=null;
 	}
 
-	
 	
 	@Override
 	public void visit(IntegerLiteralExpr e) {
@@ -507,7 +485,7 @@ public class ValidatorVisitor implements Visitor {
 			result = "ERROR\n";
 			validator_msg.append("IntegerLiteralExpr "+ curr_class+" "+"the static type of the object is not a reference type \n");
 		}
-		if (is_assignStatement&&isActual==false&&is_newIntArray==false) {//check arrays
+		if (is_assignStatement&&isActual==false&&is_newIntArray==false&&is_exp==false) {//check arrays
 			if(!type.equals(lv_decl)) {
 				result = "ERROR\n";
 				validator_msg.append("IntegerLiteralExpr "+ curr_class+" "+curr_method+"not in this: lv and rv with different decl lv_name: " + lv_name+"\n");
@@ -692,7 +670,7 @@ public class ValidatorVisitor implements Visitor {
 				validator_msg.append(curr_class+" "+curr_method+"the var "+e.id()+" is not defined\n");
 				return;
 			}
-			if(is_assignStatement&method_call==false) { 
+			if(is_assignStatement&method_call==false&&is_exp==false) { 
 				if(!v_dec.equals(lv_decl)) {
 					if (!check_assignment_subtyping(lv_decl)){
 						result = "ERROR\n";
@@ -804,6 +782,7 @@ public class ValidatorVisitor implements Visitor {
 		boolean found_super_class=false;
 		if(method_call&&isActual) {
 			method_call_args.add(class_call);
+			call_var_class=class_call;
 		}
 		if(is_assignStatement&&method_call==false) {
 			if(!class_call.equals(lv_decl)) {//ex16 assignment with new
