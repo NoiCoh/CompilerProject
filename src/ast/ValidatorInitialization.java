@@ -2,8 +2,12 @@ package ast;
 
 import java.util.ArrayList;
 
+import ast.SymbolTable.Scope;
+import ast.SymbolTable.Symb;
+
 public class ValidatorInitialization implements Visitor {
 	private String result;
+	private ArrayList<SymbolTable> symbol_tables;
 	private StringBuilder validator_msg = new StringBuilder();
 	ArrayList<String> initVar;
 	ArrayList<String> initVarMethod;
@@ -12,8 +16,9 @@ public class ValidatorInitialization implements Visitor {
 	String curr_method;
 
     
-	public ValidatorInitialization(String result) {
+	public ValidatorInitialization(String result, ArrayList<SymbolTable> symbol_tables) {
 		this.result = result;
+		this.symbol_tables = symbol_tables;
 	}
 	
     public String getResult() {
@@ -42,9 +47,17 @@ public class ValidatorInitialization implements Visitor {
     public void visit(ClassDecl classDecl) {
     	curr_class = classDecl.name();
     	initVar = new ArrayList<String>();
-    	
+
         if (classDecl.superName() != null) {
             classDecl.superName();
+            SymbolTable curr_symbol_table = returnCurrTable(curr_class);
+        	if(curr_symbol_table!= null) {
+        		for (Symb symbol : curr_symbol_table.curr_scope.locals) {
+        			if(symbol.kind.equals(enumKind.field_extend)) {
+        				initVar.add(symbol.name);
+        			}
+        		}
+        	}
         }
         for (var fieldDecl : classDecl.fields()) {
         	is_field = true;
@@ -280,6 +293,22 @@ public class ValidatorInitialization implements Visitor {
             }
     	}
         return list;
+    }
+    
+    public SymbolTable returnCurrTable(String curr_class) {
+		// init variables
+    	Scope curr_class_scope = null;
+    	SymbolTable curr_symbol_table = null;
+    	
+    	// find the symbol table of the current class.
+    	for (SymbolTable symbol_table : symbol_tables) {
+    		curr_class_scope = symbol_table.curr_scope;
+    		if(curr_class_scope.name.equals(curr_class)) {
+    			curr_symbol_table = symbol_table;
+    			break;
+    		}
+    	}
+    	return curr_symbol_table;
     }
     
 }
