@@ -49,7 +49,7 @@ public class CreateSymbolTable implements Visitor {
         curr_symbol_table = symbol_table;
         symbol_table.openScope(scopeType.type_class, classDecl.name());
         
-        Scope super_scope=validateSuperClass(classDecl.superName());
+        Scope super_scope=validateSuperClass(classDecl.superName(),classDecl.name());
         
         for (var methodDecl : classDecl.methoddecls()) {
         	locals_size = curr_symbol_table.curr_scope.locals.size();
@@ -268,7 +268,7 @@ public class CreateSymbolTable implements Visitor {
     	Symb check =curr_symbol_table.addSymbol(curr_name, "int", curr_kind, curr_symbol_table.curr_scope.name,vtable_index);
     	if (check==null) {
     		validator = false;
-        	validator_msg.append("same name cannot be used for the same var in the method"+curr_name+"\n");
+        	validator_msg.append("2 same name cannot be used for the same var in the method"+curr_name+"\n");
     	}
     	curr_name = "";
     	curr_kind = enumKind.empty;
@@ -291,7 +291,7 @@ public class CreateSymbolTable implements Visitor {
     	Symb check =curr_symbol_table.addSymbol(curr_name, "bool", curr_kind, curr_symbol_table.curr_scope.name,vtable_index);
     	if (check==null) {
     		validator = false;
-        	validator_msg.append("same name cannot be used for the same var in the method "+curr_name+"\n");
+        	validator_msg.append(" 1 same name cannot be used for the same var in the method "+curr_name+"\n");
     	}
     	curr_name = "";
     	curr_kind = enumKind.empty;
@@ -313,7 +313,7 @@ public class CreateSymbolTable implements Visitor {
     	Symb check =curr_symbol_table.addSymbol(curr_name, "int_array", curr_kind,curr_symbol_table.curr_scope.name,vtable_index);
     	if (check==null) {
     		validator = false;
-        	validator_msg.append("same name cannot be used for the same var in the method "+curr_name+"\n");
+        	validator_msg.append("3 same name cannot be used for the same var in the method "+curr_name+"\n");
     	}
     	curr_name = "";
     	curr_kind = enumKind.empty;
@@ -381,13 +381,17 @@ public class CreateSymbolTable implements Visitor {
 	    }
 	}
 	
-	public Scope validateSuperClass(String super_name) {
+	public Scope validateSuperClass(String super_name,String classDecl_name) {
 		Scope super_scope=null;
 		if (super_name != null) {
 			//Validation - The main class cannot be extended
 		    if(super_name.equals(MainClassName)) {
 		    	validator=false;
 		    	validator_msg.append("The main class cannot be extended\n");
+		    }
+		    if(super_name.equals(classDecl_name)) {
+		    	validator=false;
+		    	validator_msg.append("Class cannot extend himself\n");
 		    }
 		    else {
 		    	for(SymbolTable t:symbol_tables) {

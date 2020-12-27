@@ -211,6 +211,9 @@ public class SymbolTable {
 				if (sy.compareSymbol(otherSymbol)) {
 					return false;
 				}
+				if (sy.name.equals(otherSymbol.name)) {
+					return false;
+				}
 			}
 			this.locals.add(sy);
 			return true;
