@@ -58,7 +58,7 @@ public class ValidatorVisitor implements Visitor {
         if(infixSymbol.equals("&&")) {
         	if(!(e1_type.equals("bool") && e2_type.equals("bool"))) {
         		result = "ERROR\n";
-				validator_msg.append(curr_class+" "+curr_method+" The arguments to the predefined operators are of the incorrect type.\n");
+				validator_msg.append("in class: " + curr_class+" in method: "+curr_method+" the arguments to the predefined operators are of the incorrect type.\n");
         	}
         	
         	else {
@@ -69,7 +69,7 @@ public class ValidatorVisitor implements Visitor {
         else if(infixSymbol.equals("<")) {
         	if(!(e1_type.equals("int") && e2_type.equals("int"))) {
         		result = "ERROR\n";
-				validator_msg.append(curr_class+" "+curr_method+"The arguments to the predefined operators are of the incorrect type.\n");
+				validator_msg.append("in class: " + curr_class+" in method: "+curr_method+" the arguments to the predefined operators are of the incorrect type.\n");
         	}
         	else {
         		is_boolean_exp=true;
@@ -80,14 +80,14 @@ public class ValidatorVisitor implements Visitor {
         else {
         	if(!(e1_type.equals("int") && e2_type.equals("int"))) {
         		result = "ERROR\n";
-				validator_msg.append(curr_class+" "+curr_method+"The arguments to the predefined operators are of the incorrect type.\n");
+				validator_msg.append("in class: " + curr_class+" in method: "+curr_method+" the arguments to the predefined operators are of the incorrect type.\n");
         	}
         	type = "int";
         }
 		if (is_assignStatement&&is_newIntArray==false) {
 			if(!type.equals(lv_decl)) {
 				result = "ERROR\n";
-				validator_msg.append("binaryeexp"+ curr_class+" "+curr_method+"not in this: lv and rv with different decl lv_name: " + lv_name+"\n");
+				validator_msg.append("binaryeexp in class: " + curr_class+" in method: "+curr_method+" not in this: lv and rv with different decl lv_name: " + lv_name+"\n");
 			}	
 		}	
     }
@@ -115,6 +115,7 @@ public class ValidatorVisitor implements Visitor {
 	@Override
 	public void visit(MainClass mainClass) {
 		curr_class="main";
+		curr_method ="main";
 		//check sys args in mainClass
 		mainClass.name();
 	    mainClass.argsName();
@@ -159,13 +160,13 @@ public class ValidatorVisitor implements Visitor {
 								}
 								if(found_super_class == false) {
 									result = "ERROR\n";
-									validator_msg.append(curr_class+" "+curr_method+"override method with diffrent return type\n");
+									validator_msg.append("in class: " + curr_class+" in method: "+curr_method+" override method with diffrent return type\n");
 									return;
 								}
 							}
 							else {
 								result = "ERROR\n";
-								validator_msg.append(curr_class+" "+curr_method+"override method with diffrent return type\n");
+								validator_msg.append("in class: " + curr_class+" in method: "+curr_method+" override method with diffrent return type\n");
 								return;
 							}
 						}
@@ -201,12 +202,12 @@ public class ValidatorVisitor implements Visitor {
 			if (!(type.equals("bool")||type.equals("int")||type.equals("int_array"))) {
 				if(!check_assignment_subtyping(ret_type)){
 					result = "ERROR\n";
-					validator_msg.append(curr_class+" "+curr_method+" different return type"+ret_type+" not equal to "+type+"\n");
+					validator_msg.append("in class: " + curr_class+" in method: "+curr_method+" different return type"+ret_type+" not equal to "+type+"\n");
 				}
 			}
 			else {
 				result = "ERROR\n";
-				validator_msg.append(curr_class+" "+curr_method+" different return type"+ret_type+" not equal to "+type+"\n");
+				validator_msg.append("in class: " + curr_class+" in method: "+curr_method+" different return type"+ret_type+" not equal to "+type+"\n");
 			}
 		}
 	}
@@ -218,7 +219,7 @@ public class ValidatorVisitor implements Visitor {
 			SymbolTable symbol_table = returnCurrTable(type);
 			if(symbol_table == null) {
 				result = "ERROR\n";
-				validator_msg.append(curr_class+" "+curr_method+"type declaration "+type+ " of a reference type not defined\n");
+				validator_msg.append("in class: " + curr_class+" in method: "+curr_method+" type declaration "+type+ " of a reference type not defined\n");
 			}
 		}
 	}
@@ -230,7 +231,7 @@ public class ValidatorVisitor implements Visitor {
 			SymbolTable symbol_table = returnCurrTable(type);
 			if(symbol_table == null) {
 				result = "ERROR\n";
-				validator_msg.append(curr_class+" "+curr_method+"type declaration "+type+ " of a reference type not defined\n");
+				validator_msg.append("in class: " + curr_class+" in method: "+curr_method+" type declaration "+type+ " of a reference type not defined\n");
 			}
 		}
 	}
@@ -268,7 +269,7 @@ public class ValidatorVisitor implements Visitor {
 		if(type != null) {
 	        if(!type.equals("int")) {
 				result = "ERROR\n";
-				validator_msg.append(curr_class+" "+curr_method+"The argument to System.out.println is of type int\n");
+				validator_msg.append("in class: " + curr_class+" in method: "+curr_method+" the argument of System.out.println is not in type int\n");;
 			}
 		}
 	}
@@ -453,7 +454,9 @@ public class ValidatorVisitor implements Visitor {
 						methodcall_type = symbol.decl;
 						type=methodcall_type;
 						break;
-					}}}
+					}
+				}
+			}
 			if (while_or_if==true&&call_var_class!=null) {
 				if(!methodcall_type.equals("bool")) {
 					result = "ERROR\n";
@@ -813,10 +816,11 @@ public class ValidatorVisitor implements Visitor {
 					}	
 				}
 				if (!found_super_class) {
-				result = "ERROR\n";
-				validator_msg.append(curr_class+" "+curr_method+" lv and rv with different decl lv_name:" + lv_name+"\n");		
-			}
-		}}
+					result = "ERROR\n";
+					validator_msg.append(curr_class+" "+curr_method+" lv and rv with different decl lv_name:" + lv_name+"\n");		
+				}
+			}	
+		}
 		//ex9
 		SymbolTable curr_symbol_table = returnCurrTable(e.classId());
 		if (curr_symbol_table==null) {
@@ -832,6 +836,7 @@ public class ValidatorVisitor implements Visitor {
 			}
 		}
 		type=class_call;//check
+		call_var_class=class_call;
 	}
 
 	@Override
@@ -861,21 +866,21 @@ public class ValidatorVisitor implements Visitor {
 	public void visit(BoolAstType t) {
 		type ="bool";
 		if (method_call&&isActual) {
-		method_call_args.add("bool");}
+			method_call_args.add("bool");}
 	}
 
 	@Override
 	public void visit(IntArrayAstType t) {
 		type = "int_array";
 		if (method_call&&isActual) {
-		method_call_args.add("int_array");	}
+			method_call_args.add("int_array");	}
 	}
 
 	@Override
 	public void visit(RefType t) {
 		type = t.id();
 		if (method_call&isActual) {
-		method_call_args.add(t.id());
+			method_call_args.add(t.id());
 		}
 	}
     public SymbolTable returnCurrTable(String curr_class) {
@@ -918,7 +923,7 @@ public class ValidatorVisitor implements Visitor {
     	}
     	if (found_method==false) {
     		result = "ERROR\n";
-			validator_msg.append(curr_class+" "+curr_method+" "+ method_name+ "is not defiened\n");
+			validator_msg.append("in class: " + curr_class+" in method: "+curr_method+" the method: "+ method_name+ " is not defiened\n");
 			return found_method;
     	}
     		
@@ -935,7 +940,7 @@ public class ValidatorVisitor implements Visitor {
 		}
 		if(method_scope.num_of_args!=curr_num_of_args) {
 			result = "ERROR\n";
-			validator_msg.append(curr_class+" "+curr_method+" override method with diffrent number of arguments\n");
+			validator_msg.append("in class: " + curr_class+" in method: "+curr_method+" override method with diffrent number of arguments\n");
 			return found_method;
 		}
 		else if (curr_num_of_args!=0) {
@@ -950,21 +955,21 @@ public class ValidatorVisitor implements Visitor {
 								return false;
 							}
 							else {
-							Scope type_scope = returnCurrTable(args.get(i)).curr_scope;
-							boolean found_super_class = false;
-							while(type_scope.prev!=null) {
-								type_scope = type_scope.prev;
-								if((type_scope.name).equals(local.decl)) {
-									found_super_class = true;
-									break;
+								Scope type_scope = returnCurrTable(args.get(i)).curr_scope;
+								boolean found_super_class = false;
+								while(type_scope.prev!=null) {
+									type_scope = type_scope.prev;
+									if((type_scope.name).equals(local.decl)) {
+										found_super_class = true;
+										break;
+									}
+								}
+								if(found_super_class == false) {
+									result = "ERROR\n";
+									validator_msg.append(curr_class+" "+curr_method+"override method with diffrent return type\n");
+									return false;
 								}
 							}
-							if(found_super_class == false) {
-								result = "ERROR\n";
-								validator_msg.append(curr_class+" "+curr_method+"override method with diffrent return type\n");
-								return false;
-							}}
-	
 						}
 						else {
 							i++;
