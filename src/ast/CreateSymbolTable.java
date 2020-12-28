@@ -326,6 +326,10 @@ public class CreateSymbolTable implements Visitor {
     @Override
     public void visit(RefType t) {
     	int vtable_index = 0;
+    	if(t.id()==null) {
+    		validator = false;
+        	validator_msg.append("t.id() is null\n");
+    	}
     	if(curr_kind==enumKind.arg) {
     		curr_name = "%" + curr_name;
     	}
@@ -461,7 +465,7 @@ public class CreateSymbolTable implements Visitor {
 				}
 				if(!args_types.isEmpty()) {
 					validator = false;
-		        	validator_msg.append("overload method "+ entry.name +" in class " + curr_scope.name +"\n");
+		        	validator_msg.append("overload method "+ entry.name +" din class " + curr_scope.name +"\n");
 				}
 			}
 		}
