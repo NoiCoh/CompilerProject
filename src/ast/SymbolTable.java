@@ -139,7 +139,7 @@ public class SymbolTable {
 
 		public boolean compareSymbol(Symb otherSymbol) {
 			if (otherSymbol.name.equals(this.name)) {
-				if (otherSymbol.decl.equals(this.decl)) {
+				//if (otherSymbol.decl.equals(this.decl)) {
 					if(this.kind == enumKind.method || this.kind == enumKind.method_extend) {
 						if (otherSymbol.kind.equals(enumKind.method_extend) || otherSymbol.kind.equals(enumKind.method)) {
 							return true;
@@ -155,7 +155,7 @@ public class SymbolTable {
 							return true;
 						}
 					}
-				}
+				//}
 			}
 			return false;
 		}
@@ -211,11 +211,11 @@ public class SymbolTable {
 				if (sy.compareSymbol(otherSymbol)) {
 					return false;
 				}
-				if (sy.name.equals(otherSymbol.name)) {
-					if(sy.kind.equals(otherSymbol.kind)) {
-						return false;
-					}
-				}
+//				if (sy.name.equals(otherSymbol.name)) {
+//					if(sy.kind.equals(otherSymbol.kind)) {
+//						return false;
+//					}
+//				}
 			}
 			this.locals.add(sy);
 			return true;

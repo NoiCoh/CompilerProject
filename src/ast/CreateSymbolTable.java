@@ -67,7 +67,10 @@ public class CreateSymbolTable implements Visitor {
 	        		if(null != curr_symbol_table.addSymbol(entry.name,entry.decl ,enumKind.method_extend, entry.extendFrom, method_vtable_index)) {
 	        			numOfMethod++;
 		        		method_vtable_index++;
-	        		}	
+	        		}
+	        		else {
+	        			ValidateOverloading(entry, super_scope, curr_symbol_table.curr_scope);
+	        		}
 				}
 				if(entry.kind == enumKind.field || entry.kind == enumKind.field_extend) {
 					if(null != curr_symbol_table.addSymbol(entry.name,entry.decl ,enumKind.field_extend, entry.extendFrom,entry.vtableindex)) {
@@ -336,7 +339,7 @@ public class CreateSymbolTable implements Visitor {
     	Symb check=curr_symbol_table.addSymbol(curr_name, t.id(), curr_kind, curr_symbol_table.curr_scope.name,vtable_index);
     	if (check==null) {
     		validator = false;
-        	validator_msg.append("blaaaa same name cannot be used for the same var in the method "+curr_name+"\n");
+        	validator_msg.append("4 same name cannot be used for the same var in the method "+curr_name+"\n");
     	}
     	curr_name = "";
     	curr_kind = enumKind.empty;
@@ -422,6 +425,46 @@ public class CreateSymbolTable implements Visitor {
         	validator = false;
         	validator_msg.append("same name cannot be used for the same field or method in one class\n");
         }
+	}
+	
+	public void ValidateOverloading(Symb entry,Scope super_scope, Scope curr_scope) {
+		Scope methodScope1 = null;
+		Scope methodScope2 = null;
+		// finding the  method scope of the super scope
+		for( Scope e1 : super_scope.next) {
+			if(e1.name.equals(entry.name) && e1.type == scopeType.method) {
+				methodScope1 = e1;
+				break;
+			}
+		}
+		// finding the  method scope of the curr scope
+		for( Scope e2 : curr_scope.next) {
+			if(e2.name.equals(entry.name) && e2.type == scopeType.method) {
+				methodScope2 = e2;
+				break;
+			}
+		}
+		ArrayList<String> args_types = new ArrayList<String>();
+		if(methodScope1!=null && methodScope2!=null) {
+			if(methodScope1.num_of_fields == methodScope2.num_of_fields) {
+				for( Symb s : methodScope1.locals) {
+					if(s.kind == enumKind.arg) {
+						args_types.add(s.decl);
+					}
+				}
+				for( Symb s : methodScope2.locals) {
+					if(s.kind == enumKind.arg) {
+						if(args_types.contains(s.decl)) {
+							args_types.remove(s.decl);
+						}
+					}
+				}
+				if(!args_types.isEmpty()) {
+					validator = false;
+		        	validator_msg.append("overload method "+ entry.name +" in class " + curr_scope.name +"\n");
+				}
+			}
+		}
 	}
 	
 }

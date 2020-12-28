@@ -36,8 +36,7 @@ public class ValidatorVisitor implements Visitor {
 	boolean is_newIntArray=false;
 	boolean is_error=false;
 	
-	
-	
+
 	public ValidatorVisitor(ArrayList<SymbolTable> symbol_tables) {
 		this.symbol_tables = symbol_tables;
 	}
