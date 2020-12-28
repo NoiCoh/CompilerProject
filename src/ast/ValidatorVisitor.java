@@ -35,6 +35,8 @@ public class ValidatorVisitor implements Visitor {
 	boolean is_thisexp=false;
 	boolean is_newIntArray=false;
 	boolean is_error=false;
+	boolean is_owner=false;
+	boolean is_owner_valid=true;
 	
 
 	public ValidatorVisitor(ArrayList<SymbolTable> symbol_tables) {
@@ -430,6 +432,12 @@ public class ValidatorVisitor implements Visitor {
 
 	@Override
 	public void visit(MethodCallExpr e) {
+		if (is_owner) {
+			result = "ERROR\n";
+			is_owner_valid=false;
+			validator_msg.append(curr_class+" "+curr_method+" function owner can't be method call\n");
+			return;
+		}
 		method_call_args.clear();
 		method_call_name=e.methodId();
 		num_of_actuals=e.actuals().size();
@@ -446,7 +454,9 @@ public class ValidatorVisitor implements Visitor {
 	    	return;
 	    }
 	    method_call=true;
+	    is_owner=true;
 		e.ownerExpr().accept(this);
+		is_owner=false;
 		SymbolTable curr_symbol_table = returnCurrTable(call_var_class);
 		if(curr_symbol_table != null) {
 			Scope curr_scope = curr_symbol_table.curr_scope;
@@ -743,10 +753,10 @@ public class ValidatorVisitor implements Visitor {
 			}
 			else if(this_symbol_table != null) {
 				found_method=check_args(this_symbol_table.curr_scope,num_of_actuals,method_call_args,method_call_name);
-				if (found_method==false) {
-					result = "ERROR\n";
-					validator_msg.append(curr_class+" "+curr_method+" in this: the function "+method_call_name+" is not defined in the class "+curr_class+"\n");
-				}	
+//				if (found_method==false) {
+//					result = "ERROR\n";
+//					validator_msg.append(curr_class+" "+curr_method+" in this: the function "+method_call_name+" is not defined in the class "+curr_class+"\n");
+//				}	
 			}		
 		}
 		if (is_assignStatement&method_call==false) {
@@ -881,9 +891,11 @@ public class ValidatorVisitor implements Visitor {
     	// find the symbol table of the current class.
     	for (SymbolTable symbol_table : symbol_tables) {
     		curr_class_scope = symbol_table.curr_scope;
-    		if(curr_class_scope.name.equals(curr_class)) {
-    			curr_symbol_table = symbol_table;
-    			break;
+    		if(curr_class!=null) {
+	    		if(curr_class_scope.name.equals(curr_class)) {
+	    			curr_symbol_table = symbol_table;
+	    			break;
+	    		}
     		}
     	}
     	return curr_symbol_table;
@@ -942,7 +954,7 @@ public class ValidatorVisitor implements Visitor {
 						if(!local.decl.equals(args.get(i))) {
 							if (args.get(i).equals("bool")||args.get(i).equals("int_arr")||args.get(i).equals("int")) {
 								result = "ERROR\n";
-								validator_msg.append(curr_class+" "+curr_method+"override method with diffrent return type\n");
+								validator_msg.append(curr_class+" "+curr_method+"override method with diffrent args type\n");
 								return false;
 							}
 							else {
@@ -957,7 +969,7 @@ public class ValidatorVisitor implements Visitor {
 								}
 								if(found_super_class == false) {
 									result = "ERROR\n";
-									validator_msg.append(curr_class+" "+curr_method+"override method with diffrent return type\n");
+									validator_msg.append(curr_class+" "+curr_method+"override method with diffrent args type\n");
 									return false;
 								}
 								else {
@@ -1028,10 +1040,5 @@ public class ValidatorVisitor implements Visitor {
 		}
 
 	}
-
-	public boolean check_if_type_exist(String type) {
-		return true;
-	}
 		
-	
 }

@@ -295,7 +295,7 @@ public class CreateSymbolTable implements Visitor {
     	Symb check =curr_symbol_table.addSymbol(curr_name, "bool", curr_kind, curr_symbol_table.curr_scope.name,vtable_index);
     	if (check==null) {
     		validator = false;
-        	validator_msg.append(" 1 same name cannot be used for the same var in the method "+curr_name+"\n");
+        	validator_msg.append(" 1 same name cannot be used for the same var or method : "+curr_name+"\n");
     	}
     	curr_name = "";
     	curr_kind = enumKind.empty;
@@ -317,7 +317,7 @@ public class CreateSymbolTable implements Visitor {
     	Symb check =curr_symbol_table.addSymbol(curr_name, "int_array", curr_kind,curr_symbol_table.curr_scope.name,vtable_index);
     	if (check==null) {
     		validator = false;
-        	validator_msg.append("3 same name cannot be used for the same var in the method "+curr_name+"\n");
+        	validator_msg.append("3 same name cannot be used for the same var or method : "+curr_name+"\n");
     	}
     	curr_name = "";
     	curr_kind = enumKind.empty;
@@ -343,7 +343,7 @@ public class CreateSymbolTable implements Visitor {
     	Symb check=curr_symbol_table.addSymbol(curr_name, t.id(), curr_kind, curr_symbol_table.curr_scope.name,vtable_index);
     	if (check==null) {
     		validator = false;
-        	validator_msg.append("4 same name cannot be used for the same var in the method "+curr_name+"\n");
+        	validator_msg.append("4 same name cannot be used for the same var or method : "+curr_name+"\n");
     	}
     	curr_name = "";
     	curr_kind = enumKind.empty;
