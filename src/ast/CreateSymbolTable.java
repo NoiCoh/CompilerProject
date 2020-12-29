@@ -213,7 +213,12 @@ public class CreateSymbolTable implements Visitor {
 
     @Override
     public void visit(MethodCallExpr e) {
-    	if (e.ownerExpr()!=null) {
+    	if (e.ownerExpr()==null) {
+    	validator = false;
+    	validator_msg.append("owner expression is null in method: " + curr_name + "\n");
+    	return;
+    	}
+    	else {
     		e.ownerExpr().accept(this);
     	}
         for (Expr arg : e.actuals()) {
