@@ -213,7 +213,9 @@ public class CreateSymbolTable implements Visitor {
 
     @Override
     public void visit(MethodCallExpr e) {
-        e.ownerExpr().accept(this);
+    	if (e.ownerExpr()!=null) {
+    		e.ownerExpr().accept(this);
+    	}
         for (Expr arg : e.actuals()) {
             arg.accept(this);
         }

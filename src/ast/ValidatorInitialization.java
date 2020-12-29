@@ -215,7 +215,11 @@ public class ValidatorInitialization implements Visitor {
 
     @Override
     public void visit(MethodCallExpr e) {
-
+    	if ( e.ownerExpr()==null) {
+    		result = "ERROR\n";
+			validator_msg.append("owner expression is null in method: " + curr_method + "\n");
+			return;
+    	}
         e.ownerExpr().accept(this);
         e.methodId();
 

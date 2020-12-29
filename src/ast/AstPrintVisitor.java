@@ -240,7 +240,10 @@ public class AstPrintVisitor implements Visitor {
     @Override
     public void visit(MethodCallExpr e) {
         builder.append("(");
-        e.ownerExpr().accept(this);
+        if(e.ownerExpr()!=null){
+        	 e.ownerExpr().accept(this);
+        }
+       
         builder.append(")");
         builder.append(".");
         builder.append(e.methodId());
