@@ -118,7 +118,10 @@ SingleLineComment	= "//"({CommentTexts} | "/" | "*")*{LineTerminator}
 "return"            { return symbol(sym.RETURN); }
 "while"             { return symbol(sym.WHILE); }
 "if"                { return symbol(sym.IF); }
-"array"             { return symbol(sym.ARRAY); }
+"String[]"  	   	{ return symbol(sym.STRARRAY); }
+"void"				{ return symbol(sym.VOID); }
+"static"			{ return symbol(sym.STATIC); }
+"main"				{ return symbol(sym.MAIN); }
 
 "null"				{ return symbol(sym.NULL); }
 {ID}			    { return symbol(sym.ID, new String(yytext())); }

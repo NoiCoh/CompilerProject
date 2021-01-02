@@ -17,11 +17,10 @@ public class Main {
             	var outFile = new PrintWriter(outfilename);
             	FileReader fileReader = new FileReader(new File(filename));
             	Parser p = new Parser(new Lexer(fileReader));
-            	Expr expr = (Expr) p.parse().value;
+            	prog = (Program) p.parse().value;
                 AstPrintVisitor astPrinter = new AstPrintVisitor();
-                expr.accept(astPrinter);
+                prog.accept(astPrinter);
                 System.out.println(astPrinter.getString());
-                prog = null;
             } else if (inputMethod.equals("unmarshal")) {
                 AstXMLSerializer xmlSerializer = new AstXMLSerializer();
                 prog = xmlSerializer.deserialize(new File(filename));

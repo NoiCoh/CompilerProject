@@ -14,15 +14,18 @@ public interface sym {
   public static final int EQUAL = 15;
   public static final int WHILE = 21;
   public static final int RETURN = 20;
+  public static final int STRARRAY = 23;
   public static final int IF = 22;
   public static final int RCBRACK = 12;
   public static final int LPAREN = 7;
-  public static final int ID = 25;
+  public static final int ID = 28;
   public static final int PUBLIC = 2;
+  public static final int STATIC = 25;
   public static final int COMMA = 3;
-  public static final int NUMBER = 26;
+  public static final int NUMBER = 29;
   public static final int EOF = 0;
   public static final int MULT = 6;
+  public static final int MAIN = 26;
   public static final int MINUS = 5;
   public static final int error = 1;
   public static final int DOT = 14;
@@ -30,9 +33,9 @@ public interface sym {
   public static final int LSBRACK = 9;
   public static final int NEW = 18;
   public static final int RSBRACK = 10;
-  public static final int NULL = 24;
+  public static final int NULL = 27;
   public static final int EXTENDS = 19;
-  public static final int ARRAY = 23;
+  public static final int VOID = 24;
   public static final String[] terminalNames = new String[] {
   "EOF",
   "error",
@@ -57,7 +60,10 @@ public interface sym {
   "RETURN",
   "WHILE",
   "IF",
-  "ARRAY",
+  "STRARRAY",
+  "VOID",
+  "STATIC",
+  "MAIN",
   "NULL",
   "ID",
   "NUMBER"

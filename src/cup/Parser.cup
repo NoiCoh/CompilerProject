@@ -10,6 +10,7 @@
 import java_cup.runtime.*;
 import ast.*;
 import java.util.List;
+import java.util.ArrayList;
 import java.util.LinkedList;
 
 parser code
@@ -85,7 +86,10 @@ terminal EXTENDS;
 terminal RETURN;
 terminal WHILE;
 terminal IF;
-terminal ARRAY;
+terminal STRARRAY;
+terminal VOID;
+terminal STATIC;
+terminal MAIN;
 
 terminal NULL;
 terminal String ID;
@@ -95,11 +99,18 @@ terminal Integer NUMBER;
 /* NON TERMINALS */
 /*****************/
 non terminal prog;
+
+non terminal AstNode node;
+non terminal MethodDecl methodDecl;
+non terminal List<MethodDecl> list_methods;
+non terminal ClassDecl classDecl;
+
+non terminal VariableIntroduction varIntro;
+non terminal VarDecl varDecl;
+non terminal List<VarDecl> list_vars;
+
 non terminal Expr expr;
 non terminal Statement stmt;
-non terminal MethodDecl methodDecl;
-non terminal ClassDecl classDecl;
-non terminal VariableIntroduction varDecl;
 non terminal RefType refType;
 non terminal MainClass main;
 non terminal IntAstType intType;
@@ -128,4 +139,29 @@ start with prog;
 /* PRODUCTION RULES */
 /********************/
 
-prog            ::=     ;
+prog ::= node:n		{: RESULT = new Program(); :};
+
+node ::= varIntro:d 		{: RESULT = d; :}
+       | methodDecl:d   {: RESULT = d; :}
+       | classDecl:d    {: RESULT = d; :}
+       | main:d 		{: RESULT = d; :}
+       ;
+       
+classDecl ::= CLASS ID:id1 LCBRACK varDecl:v list_vars:v1  methodDecl:m list_methods:m1 RCBRACK     {: RESULT = new ClassDecl(id1, null, v1,m1); :} |
+           |  CLASS ID:id1 EXTENDS ID:id2 LCBRACK varDecl:v list_vars:v1  methodDecl:m list_methods:m1 RCBRACK    {: RESULT = new ClassDecl(id1, id2, v1,m1); :}
+           ;
+           
+main ::= CLASS MAIN LCBRACK PUBLIC STATIC VOID ID:func_name LPAREN STRARRAY ID:args RPAREN LCBRACK stmt:st RCBRACK RCBRACK {: RESULT = new MainClass(func_name, args, st); :}
+	;
+list_vars ::= SEMICOLON varDecl:v list_vars:el {: el.add(v); RESULT = el; :}
+		 | /* empty */           	{: RESULT = new ArrayList<VarDecl>(); :} 
+;
+
+list_methods ::= LCBRACK methodDecl:m list_methods:m1 {: m1.add(m); RESULT = m1; :}
+		 | /* empty */           	{: RESULT = new ArrayList<MethodDecl>(); :} 
+;
+expr ::= expr:e1 PLUS expr:e2 		{: RESULT = new AddExpr(e1, e2); :}
+         | expr:e1 MINUS expr:e2	{: RESULT = new SubtractExpr(e1, e2); :}
+         | expr:e1 MULT expr:e2		{: RESULT = new MultExpr(e1, e2); :}
+         | LPAREN expr:e RPAREN		{: RESULT = e; :}
+         | NUMBER:n					{: RESULT = new IntegerLiteralExpr(n); :};

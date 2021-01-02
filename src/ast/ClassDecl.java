@@ -29,7 +29,7 @@ public class ClassDecl extends AstNode {
         this.fields = fields;
         this.methoddecls = methoddecls;
     }
-
+    
     public void accept(Visitor v) {
         v.visit(this);
     }
