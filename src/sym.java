@@ -6,13 +6,61 @@
 /** CUP generated interface containing symbol constants. */
 public interface sym {
   /* terminals */
-  public static final int error = 1;
+  public static final int LT = 16;
+  public static final int CLASS = 17;
+  public static final int SEMICOLON = 13;
+  public static final int PLUS = 4;
+  public static final int RPAREN = 8;
+  public static final int EQUAL = 15;
+  public static final int WHILE = 21;
+  public static final int RETURN = 20;
+  public static final int IF = 22;
+  public static final int RCBRACK = 12;
+  public static final int LPAREN = 7;
+  public static final int ID = 25;
   public static final int PUBLIC = 2;
+  public static final int COMMA = 3;
+  public static final int NUMBER = 26;
   public static final int EOF = 0;
+  public static final int MULT = 6;
+  public static final int MINUS = 5;
+  public static final int error = 1;
+  public static final int DOT = 14;
+  public static final int LCBRACK = 11;
+  public static final int LSBRACK = 9;
+  public static final int NEW = 18;
+  public static final int RSBRACK = 10;
+  public static final int NULL = 24;
+  public static final int EXTENDS = 19;
+  public static final int ARRAY = 23;
   public static final String[] terminalNames = new String[] {
   "EOF",
   "error",
-  "PUBLIC"
+  "PUBLIC",
+  "COMMA",
+  "PLUS",
+  "MINUS",
+  "MULT",
+  "LPAREN",
+  "RPAREN",
+  "LSBRACK",
+  "RSBRACK",
+  "LCBRACK",
+  "RCBRACK",
+  "SEMICOLON",
+  "DOT",
+  "EQUAL",
+  "LT",
+  "CLASS",
+  "NEW",
+  "EXTENDS",
+  "RETURN",
+  "WHILE",
+  "IF",
+  "ARRAY",
+  "NULL",
+  "ID",
+  "NUMBER"
   };
 }
 

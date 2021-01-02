@@ -1,4 +1,9 @@
 /*************/
+/* Based on a template by Oren Ish-Shalom */
+/*************/
+
+
+/*************/
 /* IMPORTS */
 /*************/
 
@@ -16,15 +21,11 @@ parser code
 		super(lexer);
 		this.lexer = lexer;
 	}
+
+	// Override default error reporting in parser
 	public void report_error(String message, Object info)
 	{
-    System.out.print("Syntax error at line " + lexer.getLine() + " of input\n");
-		// System.out.print("ERROR >> ");
-		// System.out.print("[");
-		// System.out.print(lexer.getLine());
-		// System.out.print(":");
-		// System.out.print(lexer.getCharPos());
-		// System.out.print("] ");
+	    System.err.print("Syntax error at line " + lexer.getLine() + " of input. Parser\n");
 		System.exit(1);
 	}
 :}
@@ -35,6 +36,7 @@ parser code
 scan with
 {:
 	Symbol s;
+    try {
 	s = lexer.next_token();
 	// System.out.print(s.sym);
 	// System.out.print("[");
@@ -51,21 +53,71 @@ scan with
 	// }
 	// System.out.print("\n");
 	return s;
+     } catch (java.lang.Error e) {
+         System.err.print("Syntax error at line " + lexer.getLine() + " of input. Lexer\n");
+         System.exit(1);
+         return null;
+     }
 :};
 
 /*************/
 /* TERMINALS */
 /*************/
 terminal PUBLIC;
+terminal COMMA;
+terminal PLUS;
+terminal MINUS;
+terminal MULT;
+terminal LPAREN;
+terminal RPAREN;
+terminal LSBRACK;
+terminal RSBRACK;
+terminal LCBRACK;
+terminal RCBRACK;
+terminal SEMICOLON;
+terminal DOT;
+terminal EQUAL;
+terminal LT;
+
+terminal CLASS;
+terminal NEW;
+terminal EXTENDS;
+terminal RETURN;
+terminal WHILE;
+terminal IF;
+terminal ARRAY;
+
+terminal NULL;
+terminal String ID;
+terminal Integer NUMBER;
 
 /*****************/
 /* NON TERMINALS */
 /*****************/
 non terminal prog;
+non terminal Expr expr;
+non terminal Statement stmt;
+non terminal MethodDecl methodDecl;
+non terminal ClassDecl classDecl;
+non terminal VariableIntroduction varDecl;
+non terminal RefType refType;
+non terminal MainClass main;
+non terminal IntAstType intType;
+non terminal IntArrayAstType intArrayType;
+non terminal BoolAstType boolType;
+
 
 /***********************/
 /* OPERATOR PRECEDENCE */
 /***********************/
+precedence left     EQUAL;
+precedence left     LT;
+precedence left     PLUS;
+precedence left     MINUS;
+precedence left     MULT;
+precedence nonassoc LPAREN;
+precedence nonassoc RPAREN;
+precedence left     DOT;
 
 /************************/
 /* INITIAL NON TERMINAL */

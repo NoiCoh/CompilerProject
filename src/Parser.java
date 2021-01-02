@@ -94,6 +94,7 @@ public class Parser extends java_cup.runtime.lr_parser {
     {
 
 	Symbol s;
+    try {
 	s = lexer.next_token();
 	// System.out.print(s.sym);
 	// System.out.print("[");
@@ -110,6 +111,11 @@ public class Parser extends java_cup.runtime.lr_parser {
 	// }
 	// System.out.print("\n");
 	return s;
+     } catch (java.lang.Error e) {
+         System.err.print("Syntax error at line " + lexer.getLine() + " of input. Lexer\n");
+         System.exit(1);
+         return null;
+     }
 
     }
 
@@ -121,15 +127,11 @@ public class Parser extends java_cup.runtime.lr_parser {
 		super(lexer);
 		this.lexer = lexer;
 	}
+
+	// Override default error reporting in parser
 	public void report_error(String message, Object info)
 	{
-    System.out.print("Syntax error at line " + lexer.getLine() + " of input\n");
-		// System.out.print("ERROR >> ");
-		// System.out.print("[");
-		// System.out.print(lexer.getLine());
-		// System.out.print(":");
-		// System.out.print(lexer.getCharPos());
-		// System.out.print("] ");
+	    System.err.print("Syntax error at line " + lexer.getLine() + " of input. Parser\n");
 		System.exit(1);
 	}
 

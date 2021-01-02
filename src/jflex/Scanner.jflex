@@ -1,5 +1,5 @@
 /***************************/
-/* FILE NAME: LEX_FILE.lex */
+/* Based on a template by Oren Ish-Shalom */
 /***************************/
 
 /*************/
@@ -64,10 +64,25 @@ import java_cup.runtime.*;
 /* MACRO DECALARATIONS */
 /***********************/
 
+LineTerminator		= \r|\n|\r\n
+TAB					= [\t ]
+WhiteSpace			= {TAB} | {LineTerminator}
+INTEGER				= 0 | [1-9][0-9]*
+ALPHABET			= [a-zA-Z]
+CHAR 				= {ALPHABET} | [0-9]
+ID 					= {ALPHABET}+{CHAR}*
+PARENTHESIS			= "(" | ")" | "{" | "}" | "[" | "]"
+SpecialChar			= "?" | "+" | "." | ";" | "-" | "!" | "_"
+CommentTexts		= {SpecialChar} |{PARENTHESIS} | {CHAR} | {TAB}
+SingleLineComment	= "//"({CommentTexts} | "/" | "*")*{LineTerminator}
+
+
+
 /******************************/
 /* DOLAR DOLAR - DON'T TOUCH! */
 /******************************/
 
+%state MULITYLINESCOMMENT
 %%
 
 /************************************************************/
@@ -82,5 +97,44 @@ import java_cup.runtime.*;
 
 <YYINITIAL> {
 "public"            { return symbol(sym.PUBLIC); }
+","			 		{ return symbol(sym.COMMA); }
+"+"          	    { return symbol(sym.PLUS); }
+"-"           	    { return symbol(sym.MINUS); }
+"*"          	    { return symbol(sym.MULT); }
+"("           	    { return symbol(sym.LPAREN); }
+")"          	    { return symbol(sym.RPAREN); }
+"["					{ return symbol(sym.LSBRACK); }
+"]"					{ return symbol(sym.RSBRACK); }
+"{"					{ return symbol(sym.LCBRACK); }
+"}"					{ return symbol(sym.RCBRACK); }
+";"     	        { return symbol(sym.SEMICOLON); }
+"."        		    { return symbol(sym.DOT); }
+"="					{ return symbol(sym.EQUAL); }
+"<"					{ return symbol(sym.LT); }
+
+"class"             { return symbol(sym.CLASS); }
+"new"               { return symbol(sym.NEW); }
+"extends"           { return symbol(sym.EXTENDS); }
+"return"            { return symbol(sym.RETURN); }
+"while"             { return symbol(sym.WHILE); }
+"if"                { return symbol(sym.IF); }
+"array"             { return symbol(sym.ARRAY); }
+
+"null"				{ return symbol(sym.NULL); }
+{ID}			    { return symbol(sym.ID, new String(yytext())); }
+{INTEGER}           { return symbol(sym.NUMBER, Integer.parseInt(yytext())); }
+{WhiteSpace}        { /* do nothing */ }
+
+{SingleLineComment} { /* do nothing */ }
+"/*"				{yybegin(MULITYLINESCOMMENT);}
+
 <<EOF>>				{ return symbol(sym.EOF); }
+}
+
+<MULITYLINESCOMMENT> {
+"*/"                { yybegin(YYINITIAL); }
+{CommentTexts}      { /* do nothing */ }
+"*"                 { /* do nothing */ }
+"/"                 { /* do nothing*/ }
+<<EOF>>             { throw new UnsupportedOperationException("Illegal ending of comment"); }
 }

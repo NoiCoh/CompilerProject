@@ -13,9 +13,15 @@ public class Main {
             var outfilename = args[args.length - 1];
 
             Program prog;
-
             if (inputMethod.equals("parse")) {
-                throw new UnsupportedOperationException("TODO - Ex. 4");
+            	var outFile = new PrintWriter(outfilename);
+            	FileReader fileReader = new FileReader(new File(filename));
+            	Parser p = new Parser(new Lexer(fileReader));
+            	Expr expr = (Expr) p.parse().value;
+                AstPrintVisitor astPrinter = new AstPrintVisitor();
+                expr.accept(astPrinter);
+                System.out.println(astPrinter.getString());
+                prog = null;
             } else if (inputMethod.equals("unmarshal")) {
                 AstXMLSerializer xmlSerializer = new AstXMLSerializer();
                 prog = xmlSerializer.deserialize(new File(filename));
@@ -28,9 +34,9 @@ public class Main {
                 ArrayList<SymbolTable> symbol_tables = new ArrayList<SymbolTable>();
                 CreateSymbolTable create = new CreateSymbolTable(symbol_tables);
                 create.visit(prog);
-                for (SymbolTable symbol_table : symbol_tables) {
-                	symbol_table.printTable();
-                }
+//                for (SymbolTable symbol_table : symbol_tables) {
+//                	symbol_table.printTable();
+//                }
 
                 if (action.equals("marshal")) {
                     AstXMLSerializer xmlSerializer = new AstXMLSerializer();
