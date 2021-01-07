@@ -212,7 +212,7 @@ expr ::= expr:e1 PLUS expr:e2 		{: RESULT = new AddExpr(e1, e2); :}
 	     | FALSE {: RESULT = new FalseExpr(); :}
 	     | ID:id  {: RESULT = new IdentifierExpr(id); :}
 	     | THIS   {: RESULT = new ThisExpr(); :}
-	     | NEW INT LSBRACK Expr:e RSBRACK        {: RESULT = new NewIntArrayExpr(e); :}
+	     | NEW INT LSBRACK expr:e RSBRACK        {: RESULT = new NewIntArrayExpr(e); :}
 	     | NEW ID:id LPAREN RPAREN               {: RESULT = new NewObjectExpr(id); :};
 	        
 
