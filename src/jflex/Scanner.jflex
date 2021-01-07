@@ -111,18 +111,30 @@ SingleLineComment	= "//"({CommentTexts} | "/" | "*")*{LineTerminator}
 "."        		    { return symbol(sym.DOT); }
 "="					{ return symbol(sym.EQUAL); }
 "<"					{ return symbol(sym.LT); }
-
+"!"					{ return symbol(sym.NOT); }
+"&&"                { return symbol(sym.AND2); }
+"&"                 { return symbol(sym.AND1); }
 "class"             { return symbol(sym.CLASS); }
 "new"               { return symbol(sym.NEW); }
 "extends"           { return symbol(sym.EXTENDS); }
 "return"            { return symbol(sym.RETURN); }
 "while"             { return symbol(sym.WHILE); }
 "if"                { return symbol(sym.IF); }
+"else"                { return symbol(sym.ELSE); }
 "String[]"  	   	{ return symbol(sym.STRARRAY); }
+"int[]"  	   		{ return symbol(sym.INTARRAY); }
+"new"  	   		    { return symbol(sym.NEW); }
+"length"            { return symbol(sym.LEN);  }
+"true"              { return symbol(sym.TRUE);  }
+"false"             { return symbol(sym.FALSE);  }
+"System.out.println" { return symbol(sym.SYSOUT); }
+"this"              { return symbol(sym.THIS);  }
 "void"				{ return symbol(sym.VOID); }
 "static"			{ return symbol(sym.STATIC); }
 "main"				{ return symbol(sym.MAIN); }
-
+"int"               { return symbol(sym.INT);  }
+"boolean"           { return symbol(sym.BOOL); }
+"return"            { return symbol(sym.RETURN); }
 "null"				{ return symbol(sym.NULL); }
 {ID}			    { return symbol(sym.ID, new String(yytext())); }
 {INTEGER}           { return symbol(sym.NUMBER, Integer.parseInt(yytext())); }
