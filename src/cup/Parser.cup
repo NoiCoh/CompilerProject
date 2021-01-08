@@ -79,7 +79,6 @@ terminal SEMICOLON;
 terminal DOT;
 terminal EQUAL;
 terminal LT;
-
 terminal CLASS;
 terminal EXTENDS;
 terminal RETURN;
@@ -152,7 +151,8 @@ start with prog;
 prog ::= MainClass:main_class list_ClassDecls:list_class_decls   {: RESULT = new Program(main_class, list_class_decls); :};
 
 list_ClassDecls  ::= list_ClassDecls:list_class_decls classDecl:c    {: list_class_decls.add(c); RESULT = list_class_decls; :}
- 					|      /* empty */                                {: RESULT = new ArrayList<ClassDecl>(); :};
+					|   classDecl:c                                  {: class=new ArrayList<ClassDecl>(); class.add(c); RESULT=class  :};
+ 					|      /* empty */                               {: RESULT = new ArrayList<ClassDecl>(); :};
 
 MainClass  ::= CLASS ID:id LCBRACK PUBLIC STATIC VOID ID:main LPAREN STRARRAY ID:args RPAREN LCBRACK Stmt:main_st RCBRACK RCBRACK {: RESULT = new MainClass(id, args, main_st); :};
 
