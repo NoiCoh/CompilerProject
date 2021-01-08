@@ -135,6 +135,11 @@ precedence left     LT;
 precedence left     PLUS;
 precedence left     MINUS;
 precedence left     MULT;
+precedence left     NOT;
+precedence left     AND1;
+precedence left     AND2;
+precedence nonassoc LSBRACK;
+precedence nonassoc RSBRACK;
 precedence nonassoc LPAREN;
 precedence nonassoc RPAREN;
 precedence left     DOT;
@@ -151,7 +156,6 @@ start with prog;
 prog ::= MainClass:main_class list_ClassDecls:list_class_decls   {: RESULT = new Program(main_class, list_class_decls); :};
 
 list_ClassDecls  ::= list_ClassDecls:list_class_decls classDecl:c    {: list_class_decls.add(c); RESULT = list_class_decls; :}
-					|   classDecl:c                                  {: class=new ArrayList<ClassDecl>(); class.add(c); RESULT=class  :}
  					|      /* empty */                               {: RESULT = new ArrayList<ClassDecl>(); :};
 
 MainClass  ::= CLASS ID:id LCBRACK PUBLIC STATIC VOID ID:main LPAREN STRARRAY ID:args RPAREN LCBRACK Stmt:main_st RCBRACK RCBRACK {: RESULT = new MainClass(id, args, main_st); :};
@@ -159,7 +163,7 @@ MainClass  ::= CLASS ID:id LCBRACK PUBLIC STATIC VOID ID:main LPAREN STRARRAY ID
 classDecl ::= CLASS ID:id LCBRACK list_vars:v list_methods:m RCBRACK     {: RESULT = new ClassDecl(id,null,v,m); :} 
            |  CLASS ID:id1 EXTENDS ID:id2 LCBRACK list_vars:v list_methods:m RCBRACK    {: RESULT = new ClassDecl(id1, id2, v,m); :};          
 
-list_vars ::= varDecl:v list_vars:vars {: vars.add(v); RESULT = vars; :}
+list_vars ::=  list_vars:vars varDecl:v {: vars.add(v); RESULT = vars; :}
 		 | /* empty */           	{: RESULT = new ArrayList<VarDecl>(); :} ;
 
 declType   ::= INT     {: RESULT = new IntAstType(); :}
@@ -169,7 +173,7 @@ declType   ::= INT     {: RESULT = new IntAstType(); :}
 
 varDecl   ::= declType:t ID:id SEMICOLON    {: RESULT = new VarDecl(t, id, null); :};
 
-list_methods ::= methodDecl:m list_methods:methods {: methods.add(m); RESULT = methods; :}
+list_methods ::=  list_methods:methods methodDecl:m {: methods.add(m); RESULT = methods; :}
 		 | /* empty */           	{: RESULT = new ArrayList<MethodDecl>(); :} ;
      		 
 
@@ -183,7 +187,7 @@ list_formals  ::= list_formals:formals COMMA formal:f    {: formals.add(f); RESU
 
 formal        ::= declType:t ID:id      {: RESULT = new FormalArg(t, id, null); :}; 
 
-list_stmts    ::= Stmt:s list_stmts:stmts        {:  stmts.add(s); RESULT = stmts;  :}
+list_stmts    ::=  list_stmts:stmts   Stmt:s     {:  stmts.add(s); RESULT = stmts;  :}
                 |     /* empty */                {: RESULT = new ArrayList<Statement>(); :};
                 
 Stmt          ::= ID:lv EQUAL expr:rv SEMICOLON         {: RESULT = new AssignStatement(lv,rv); :}
@@ -191,7 +195,6 @@ Stmt          ::= ID:lv EQUAL expr:rv SEMICOLON         {: RESULT = new AssignSt
   				| LCBRACK list_vars:vars list_stmts:stmts RCBRACK      {: RESULT = new BlockStatement(stmts); :}
   				| LCBRACK list_stmts:stmts RCBRACK      {: RESULT = new BlockStatement(stmts); :}
                 | IF LPAREN expr:cond RPAREN Stmt:then ELSE Stmt:else {: RESULT = new IfStatement(cond, then, else); :}
-                | IF LPAREN expr:cond RPAREN Stmt:then {: RESULT = new IfStatement(cond, then, null); :}
                 | WHILE LPAREN expr:cond RPAREN Stmt:s {: RESULT = new WhileStatement(cond, s); :}
                 | SYSOUT LPAREN expr:e RPAREN SEMICOLON  {: RESULT = new SysoutStatement(e); :};
               
@@ -201,7 +204,7 @@ expr ::= expr:e1 PLUS expr:e2 		{: RESULT = new AddExpr(e1, e2); :}
          | expr:e1 MULT expr:e2		{: RESULT = new MultExpr(e1, e2); :}
          | LPAREN expr:e RPAREN		{: RESULT = e; :}
          | NUMBER:n					{: RESULT = new IntegerLiteralExpr(n.intValue()); :}
-         | NOT:not expr:e           {: RESULT = new NotExpr(e); :}
+         | NOT expr:e               {: RESULT = new NotExpr(e); :}
          | expr:e1 AND1 expr:e2     {: RESULT = new AndExpr(e1, e2); :}
          | expr:e1 AND2 expr:e2     {: RESULT = new AndExpr(e1, e2); :}
 	     | expr:e1 LT expr:e2       {: RESULT = new LtExpr(e1, e2); :}
