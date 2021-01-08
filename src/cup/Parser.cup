@@ -151,7 +151,7 @@ start with prog;
 prog ::= MainClass:main_class list_ClassDecls:list_class_decls   {: RESULT = new Program(main_class, list_class_decls); :};
 
 list_ClassDecls  ::= list_ClassDecls:list_class_decls classDecl:c    {: list_class_decls.add(c); RESULT = list_class_decls; :}
-					|   classDecl:c                                  {: class=new ArrayList<ClassDecl>(); class.add(c); RESULT=class  :};
+					|   classDecl:c                                  {: class=new ArrayList<ClassDecl>(); class.add(c); RESULT=class  :}
  					|      /* empty */                               {: RESULT = new ArrayList<ClassDecl>(); :};
 
 MainClass  ::= CLASS ID:id LCBRACK PUBLIC STATIC VOID ID:main LPAREN STRARRAY ID:args RPAREN LCBRACK Stmt:main_st RCBRACK RCBRACK {: RESULT = new MainClass(id, args, main_st); :};
@@ -207,7 +207,7 @@ expr ::= expr:e1 PLUS expr:e2 		{: RESULT = new AddExpr(e1, e2); :}
 	     | expr:e1 LT expr:e2       {: RESULT = new LtExpr(e1, e2); :}
 	     | expr:arr LSBRACK expr:i RSBRACK   {: RESULT = new ArrayAccessExpr(arr, i); :}
 	     | expr:arr DOT LEN         {: RESULT = new ArrayLengthExpr(arr); :}
-	     | expr:owner DOT ID:id LPAREN list_methodActuals:actuals RPAREN {: RESULT = new MethodCallExpr(owner, id, actuals); :
+	     | expr:owner DOT ID:id LPAREN list_methodActuals:actuals RPAREN {: RESULT = new MethodCallExpr(owner, id, actuals); :}
 	     | TRUE  {: RESULT = new TrueExpr(); :}
 	     | FALSE {: RESULT = new FalseExpr(); :}
 	     | ID:id  {: RESULT = new IdentifierExpr(id); :}
@@ -216,9 +216,9 @@ expr ::= expr:e1 PLUS expr:e2 		{: RESULT = new AddExpr(e1, e2); :}
 	     | NEW ID:id LPAREN RPAREN               {: RESULT = new NewObjectExpr(id); :};
 	        
 
-list_methodActuals  ::= expr:e COMMA list_methodActuals:actuals   {:list_methodActuals.add(e) ;RESULT = list_methodActuals; :};
-					|   expr:e                               {: actual=new LinkedList<Expr>(); actual.add(e); RESULT=actual  :};
-					| /* empty */                            {: RESULT = new ArrayList<Expr>(); :}
+list_methodActuals  ::= expr:e COMMA list_methodActuals:actuals   {:list_methodActuals.add(e) ;RESULT = list_methodActuals; :}
+					|   expr:e                               {: actual=new LinkedList<Expr>(); actual.add(e); RESULT=actual  :}
+					| /* empty */                            {: RESULT = new ArrayList<Expr>(); :};
    
 
  
