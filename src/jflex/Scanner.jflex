@@ -113,7 +113,6 @@ SingleLineComment	= "//"({CommentTexts} | "/" | "*")*{LineTerminator}
 "<"					{ return symbol(sym.LT); }
 "!"					{ return symbol(sym.NOT); }
 "&&"                { return symbol(sym.AND2); }
-"&"                 { return symbol(sym.AND1); }
 "class"             { return symbol(sym.CLASS); }
 "new"               { return symbol(sym.NEW); }
 "extends"           { return symbol(sym.EXTENDS); }
@@ -135,7 +134,6 @@ SingleLineComment	= "//"({CommentTexts} | "/" | "*")*{LineTerminator}
 "int"               { return symbol(sym.INT);  }
 "boolean"           { return symbol(sym.BOOL); }
 "return"            { return symbol(sym.RETURN); }
-"null"				{ return symbol(sym.NULL); }
 {ID}			    { return symbol(sym.ID, new String(yytext())); }
 {INTEGER}           { return symbol(sym.NUMBER, Integer.parseInt(yytext())); }
 {WhiteSpace}        { /* do nothing */ }
@@ -147,9 +145,9 @@ SingleLineComment	= "//"({CommentTexts} | "/" | "*")*{LineTerminator}
 }
 
 <MULITYLINESCOMMENT> {
-"*/"                { yybegin(YYINITIAL); }
-{CommentTexts}      { /* do nothing */ }
-"*"                 { /* do nothing */ }
-"/"                 { /* do nothing*/ }
-<<EOF>>             { throw new UnsupportedOperationException("Illegal ending of comment"); }
+	"*/"                { yybegin(YYINITIAL); }
+	{CommentTexts}      { /* do nothing */ }
+	"*"                 { /* do nothing */ }
+	"/"                 { /* do nothing*/ }
+	<<EOF>>             { throw new UnsupportedOperationException("Illegal ending of comment"); }
 }

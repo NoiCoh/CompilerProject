@@ -823,10 +823,6 @@ class Lexer implements java_cup.runtime.Scanner {
               return symbol(sym.EOF);
             }  // fall though
             case 136: break;
-            case MULITYLINESCOMMENT: {
-              throw new UnsupportedOperationException("Illegal ending of comment");
-            }  // fall though
-            case 137: break;
             default:
           { return new java_cup.runtime.Symbol(sym.EOF); }
         }
