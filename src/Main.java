@@ -18,9 +18,9 @@ public class Main {
             	FileReader fileReader = new FileReader(new File(filename));
             	Parser p = new Parser(new Lexer(fileReader));
             	prog = (Program) p.parse().value;
-                AstPrintVisitor astPrinter = new AstPrintVisitor();
-                prog.accept(astPrinter);
-                System.out.println(astPrinter.getString());
+            	
+            	AstXMLSerializer xmlSerializer = new AstXMLSerializer();
+                xmlSerializer.serialize(prog, outfilename);
             } else if (inputMethod.equals("unmarshal")) {
                 AstXMLSerializer xmlSerializer = new AstXMLSerializer();
                 prog = xmlSerializer.deserialize(new File(filename));

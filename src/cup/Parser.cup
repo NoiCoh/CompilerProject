@@ -10,7 +10,8 @@
 import java_cup.runtime.*;
 import ast.*;
 import java.util.List;
-import java.util.ArrayList;
+import java.io.*;
+import java.util.LinkedList;
 
 parser code
 {:
@@ -106,34 +107,34 @@ terminal SYSOUT;
 /* NON TERMINALS */
 /*****************/
 non terminal prog;
-non terminal List<ClassDecl> list_ClassDecls;
+non terminal LinkedList<ClassDecl> list_ClassDecls;
 non terminal MainClass MainClass;
 non terminal ClassDecl classDecl;
 
-non terminal List<VarDecl> list_vars;
+non terminal LinkedList<VarDecl> list_vars;
 non terminal AstType declType;
 non terminal VarDecl varDecl;
-non terminal List<MethodDecl> list_methods;
+non terminal LinkedList<MethodDecl> list_methods;
 non terminal MethodDecl methodDecl;
 
-non terminal List<FormalArg> list_formals;
+non terminal LinkedList<FormalArg> list_formals;
 non terminal FormalArg formal;
-non terminal List<Statement> list_stmts;
+non terminal LinkedList<Statement> list_stmts;
 non terminal Statement Stmt;
 non terminal Expr expr;
-non terminal List<Expr> list_methodActuals;
+non terminal LinkedList<Expr> list_methodActuals;
 
 
 /***********************/
 /* OPERATOR PRECEDENCE */
 /***********************/
-precedence left     EQUAL;
-precedence left     LT;
+precedence nonassoc EQUAL;
+precedence nonassoc LT;
 precedence left     PLUS;
 precedence left     MINUS;
 precedence left     MULT;
-precedence left     NOT;
 precedence left     AND2;
+precedence left     NOT;
 precedence nonassoc LSBRACK;
 precedence nonassoc RSBRACK;
 precedence nonassoc LPAREN;
@@ -159,10 +160,10 @@ classDecl ::= CLASS ID:id LCBRACK list_vars:v list_methods:m RCBRACK            
 varDecl   ::= declType:t ID:id SEMICOLON {: RESULT = new VarDecl(t, id, lexer.getLine()); :} ; 
 
 methodDecl ::= PUBLIC declType:ret_type ID:name LPAREN list_formals:formals RPAREN LCBRACK list_vars:vars list_stmts:stmts RETURN expr:ret SEMICOLON RCBRACK            {: RESULT = new MethodDecl(ret_type, name,formals,vars,stmts,ret,lexer.getLine() ); :} /* without formals */
-            |  PUBLIC declType:ret_type ID:name LPAREN formal:f list_formals:formals RPAREN LCBRACK list_vars:vars list_stmts:stmts RETURN expr:ret SEMICOLON RCBRACK   {: formals.add(f); RESULT = new MethodDecl(ret_type, name, formals,vars,stmts,ret,lexer.getLine()); :} /* with formals */;
+            |  PUBLIC declType:ret_type ID:name LPAREN formal:f list_formals:formals RPAREN LCBRACK list_vars:vars list_stmts:stmts RETURN expr:ret SEMICOLON RCBRACK   {: formals.addFirst(f); RESULT = new MethodDecl(ret_type, name, formals,vars,stmts,ret,lexer.getLine()); :} /* with formals */;
             
-list_formals  ::= COMMA formal:f list_formals:formals  {: formals.add(f); RESULT = formals; :}
-               |     /* empty */                       {: RESULT = new ArrayList<FormalArg>(); :};
+list_formals  ::= COMMA formal:f list_formals:formals  {: formals.addFirst(f); RESULT = formals; :}
+               |     /* empty */                       {: RESULT = new LinkedList<FormalArg>(); :};
                
 formal        ::= declType:t ID:id      {: RESULT = new FormalArg(t, id, lexer.getLine()); :} ;
 
@@ -172,7 +173,7 @@ declType  ::= INT      {: RESULT = new IntAstType(); :}
 	       |  ID:ref   {: RESULT = new RefType(ref); :} ;
 	      
 Stmt     ::= ID:lv EQUAL expr:rv SEMICOLON                      {: RESULT = new AssignStatement(lv,rv); :}
-  				| ID:lv LSBRACK expr:i RSBRACK EQUAL expr:rv SEMICOLON {: RESULT = new AssignArrayStatement(lv, i, rv); :}
+  				| ID:lv LSBRACK expr:i RSBRACK EQUAL expr:rv SEMICOLON {: RESULT = new AssignArrayStatement(lv, i, rv); :} 
   				| LCBRACK list_vars:vars list_stmts:stmts RCBRACK      {: RESULT = new BlockStatement(stmts); :}
                 | IF LPAREN expr:cond RPAREN Stmt:then ELSE Stmt:els   {: RESULT = new IfStatement(cond, then, els); :}
                 | WHILE LPAREN expr:cond RPAREN Stmt:s                 {: RESULT = new WhileStatement(cond, s); :}
@@ -185,7 +186,7 @@ expr 	::= expr:e1 PLUS expr:e2 		{: RESULT = new AddExpr(e1, e2); :}
          | expr:e1 AND2 expr:e2    		{: RESULT = new AndExpr(e1, e2); :}
          | expr:arr LSBRACK expr:i RSBRACK   {: RESULT = new ArrayAccessExpr(arr, i); :}
          | expr:arr DOT LEN                  {: RESULT = new ArrayLengthExpr(arr); :}
-         | expr:owner DOT ID:id LPAREN expr:actual list_methodActuals:actuals RPAREN   {: actuals.add(actual); RESULT = new MethodCallExpr(owner, id, actuals); :}
+         | expr:owner DOT ID:id LPAREN expr:actual list_methodActuals:actuals RPAREN   {: actuals.addFirst(actual); RESULT = new MethodCallExpr(owner, id, actuals); :}
          | expr:owner DOT ID:id LPAREN list_methodActuals:actuals RPAREN   			   {:  RESULT = new MethodCallExpr(owner, id, actuals); :}
          | NUMBER:n					{: RESULT = new IntegerLiteralExpr(n.intValue()); :}
          | TRUE                                  {: RESULT = new TrueExpr(); :}
@@ -197,18 +198,18 @@ expr 	::= expr:e1 PLUS expr:e2 		{: RESULT = new AddExpr(e1, e2); :}
          | NOT expr:e               			 {: RESULT = new NotExpr(e); :}
          | LPAREN expr:e RPAREN					 {: RESULT = e; :};
 	        
-list_methodActuals  ::= COMMA expr:e list_methodActuals:actuals   {: actuals.add(e); RESULT = actuals; :}
-					| /* empty */                                 {: RESULT = new ArrayList<Expr>(); :};
+list_methodActuals  ::= COMMA expr:e list_methodActuals:actuals   {: actuals.addFirst(e); RESULT = actuals; :}
+					| /* empty */                                 {: RESULT = new LinkedList<Expr>(); :};
 
-list_ClassDecls  ::= classDecl:c list_ClassDecls:list_class_decls   {: list_class_decls.add(c); RESULT = list_class_decls; :}
- 			      |      /* empty */                               {: RESULT = new ArrayList<ClassDecl>(); :};
+list_ClassDecls  ::= list_ClassDecls:list_class_decls classDecl:c  {: list_class_decls.add(c); RESULT = list_class_decls; :}
+ 			      |      /* empty */                               {: RESULT = new LinkedList<ClassDecl>(); :};
 
-list_methods ::=  methodDecl:m list_methods:methods {: methods.add(m); RESULT = methods; :}
-		      | /* empty */           	            {: RESULT = new ArrayList<MethodDecl>(); :} ;	 
+list_methods ::=  list_methods:methods methodDecl:m  {: methods.add(m); RESULT = methods; :}
+		      | /* empty */           	            {: RESULT = new LinkedList<MethodDecl>(); :} ;	 
 
 list_vars ::= list_vars:vars varDecl:v  {: vars.add(v); RESULT = vars; :}
-		   | /* empty */                {: RESULT = new ArrayList<VarDecl>(); :} ;
+		  		| /* empty */                {: RESULT = new LinkedList<VarDecl>(); :} ;
 
-list_stmts ::= Stmt:s list_stmts:stmts       {:  stmts.add(s); RESULT = stmts;  :}
-               |     /* empty */                {: RESULT = new ArrayList<Statement>(); :};
+list_stmts ::=  Stmt:s list_stmts:stmts       {:  stmts.addFirst(s); RESULT = stmts;  :}
+               |     /* empty */              {: RESULT = new LinkedList<Statement>(); :};
                 

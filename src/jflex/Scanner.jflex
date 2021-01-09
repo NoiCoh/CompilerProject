@@ -56,6 +56,7 @@ import java_cup.runtime.*;
 	/*******************************************/
 	/* Enable line number extraction from main */
 	/*******************************************/
+	int firstline;
 	public int getLine()    { return yyline + 1; }
 	public int getCharPos() { return yycolumn;   }
 %}
@@ -68,11 +69,11 @@ LineTerminator		= \r|\n|\r\n
 TAB					= [\t ]
 WhiteSpace			= {TAB} | {LineTerminator}
 INTEGER				= 0 | [1-9][0-9]*
-ALPHABET			= [a-zA-Z]
+ALPHABET			= [a-zA-Z_]
 CHAR 				= {ALPHABET} | [0-9]
 ID 					= {ALPHABET}+{CHAR}*
 PARENTHESIS			= "(" | ")" | "{" | "}" | "[" | "]"
-SpecialChar			= "?" | "+" | "." | ";" | "-" | "!" | "_"
+SpecialChar			= "?" | "+" | "." | "," | ";" | "-" | "!" | "_" | "=" |"\""
 CommentTexts		= {SpecialChar} |{PARENTHESIS} | {CHAR} | {TAB}
 SingleLineComment	= "//"({CommentTexts} | "/" | "*")*{LineTerminator}
 
@@ -139,7 +140,7 @@ SingleLineComment	= "//"({CommentTexts} | "/" | "*")*{LineTerminator}
 {WhiteSpace}        { /* do nothing */ }
 
 {SingleLineComment} { /* do nothing */ }
-"/*"				{yybegin(MULITYLINESCOMMENT);}
+"/*"				{yybegin(MULITYLINESCOMMENT); firstline = getLine();}
 
 <<EOF>>				{ return symbol(sym.EOF); }
 }
@@ -147,7 +148,8 @@ SingleLineComment	= "//"({CommentTexts} | "/" | "*")*{LineTerminator}
 <MULITYLINESCOMMENT> {
 	"*/"                { yybegin(YYINITIAL); }
 	{CommentTexts}      { /* do nothing */ }
+	{LineTerminator}    { /* do nothing */ }
 	"*"                 { /* do nothing */ }
 	"/"                 { /* do nothing*/ }
-	<<EOF>>             { throw new UnsupportedOperationException("Illegal ending of comment"); }
+	<<EOF>>             { System.err.print("Syntax error at line " + firstline + " of input.\n");System.exit(1);}
 }

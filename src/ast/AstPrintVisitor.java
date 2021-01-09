@@ -78,7 +78,7 @@ public class AstPrintVisitor implements Visitor {
 
     @Override
     public void visit(MethodDecl methodDecl) {
-        appendWithIndent("");
+        appendWithIndent("public ");
         methodDecl.returnType().accept(this);
         builder.append(" ");
         builder.append(methodDecl.name());
@@ -149,8 +149,7 @@ public class AstPrintVisitor implements Visitor {
         indent--;
         appendWithIndent("else\n");
         indent++;
-        if( ifStatement.elsecase()!=null) {
-        ifStatement.elsecase().accept(this);}
+        ifStatement.elsecase().accept(this);
         indent--;
     }
 
@@ -240,10 +239,7 @@ public class AstPrintVisitor implements Visitor {
     @Override
     public void visit(MethodCallExpr e) {
         builder.append("(");
-        if(e.ownerExpr()!=null){
-        	 e.ownerExpr().accept(this);
-        }
-       
+        e.ownerExpr().accept(this);
         builder.append(")");
         builder.append(".");
         builder.append(e.methodId());
