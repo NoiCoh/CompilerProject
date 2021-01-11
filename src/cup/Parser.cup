@@ -39,20 +39,20 @@ scan with
 	Symbol s;
     try {
 	s = lexer.next_token();
-	System.out.print(s.sym);
-	System.out.print("[");
-	System.out.print(lexer.getLine());
-	System.out.print(":");
-	System.out.print(lexer.getCharPos());
-	System.out.print("] ");
-	System.out.print(sym.terminalNames[s.sym]);
-	if (s.value != null)
-	{
-		System.out.print("( ");
-		System.out.print(s.value);
-		System.out.print(" )");
-	}
-	System.out.print("\n");
+//	System.out.print(s.sym);
+//	System.out.print("[");
+//	System.out.print(lexer.getLine());
+//	System.out.print(":");
+//	System.out.print(lexer.getCharPos());
+//	System.out.print("] ");
+//	System.out.print(sym.terminalNames[s.sym]);
+//	if (s.value != null)
+//	{
+//		System.out.print("( ");
+//		System.out.print(s.value);
+//		System.out.print(" )");
+//	}
+//	System.out.print("\n");
 	return s;
      } catch (java.lang.Error e) {
          System.err.print("Syntax error at line " + lexer.getLine() + " of input. Lexer\n");
@@ -128,17 +128,14 @@ non terminal LinkedList<Expr> list_methodActuals;
 /***********************/
 /* OPERATOR PRECEDENCE */
 /***********************/
-precedence nonassoc EQUAL;
-precedence nonassoc LT;
-precedence left     PLUS;
-precedence left     MINUS;
-precedence left     MULT;
+precedence right 	EQUAL;
 precedence left     AND2;
-precedence left     NOT;
-precedence nonassoc LSBRACK;
-precedence nonassoc RSBRACK;
-precedence nonassoc LPAREN;
-precedence nonassoc RPAREN;
+precedence left 	LT;
+precedence left     PLUS,MINUS;
+precedence left     MULT;
+precedence right    NEW;
+precedence right    NOT;
+precedence left 	LSBRACK,RSBRACK,LPAREN,RPAREN;
 precedence left     DOT;
 
 /************************/
