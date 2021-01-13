@@ -412,6 +412,7 @@ class Lexer implements java_cup.runtime.Scanner {
 	/*******************************************/
 	/* Enable line number extraction from main */
 	/*******************************************/
+	int firstline;
 	public int getLine()    { return yyline + 1; }
 	public int getCharPos() { return yycolumn;   }
 
@@ -823,7 +824,7 @@ class Lexer implements java_cup.runtime.Scanner {
             }  // fall though
             case 136: break;
             case MULITYLINESCOMMENT: {
-              System.err.print("Syntax error at line " + getLine() + " of input.\n");System.exit(1);
+              System.err.print("Syntax error at line " + firstline + " of input.\n");System.exit(1);
             }  // fall though
             case 137: break;
             default:
@@ -933,7 +934,7 @@ class Lexer implements java_cup.runtime.Scanner {
             // fall through
           case 62: break;
           case 21:
-            { yybegin(MULITYLINESCOMMENT);
+            { yybegin(MULITYLINESCOMMENT); firstline = getLine();
             }
             // fall through
           case 63: break;

@@ -69,9 +69,10 @@ LineTerminator		= \r|\n|\r\n
 TAB					= [\t ]
 WhiteSpace			= {TAB} | {LineTerminator}
 INTEGER				= 0 | [1-9][0-9]*
-ALPHABET			= [a-zA-Z_]
+ALPHABET			= [a-zA-Z]
+UNDERSCORE          = "_"
 CHAR 				= {ALPHABET} | [0-9]
-ID 					= {ALPHABET}+{CHAR}*
+ID 					= {ALPHABET}+({CHAR}|{UNDERSCORE})*
 PARENTHESIS			= "(" | ")" | "{" | "}" | "[" | "]"
 SpecialChar			= "?" | "+" | "." | "," | ";" | "-" | "!" | "_" | "=" |"\""
 CommentTexts		= {SpecialChar} |{PARENTHESIS} | {CHAR} | {TAB}
