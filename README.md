@@ -1,4 +1,4 @@
-Welcome to the compiler project 2020 starter kit!
+Welcome to the compiler project 2020!
 
 === Structure ===
 
@@ -38,36 +38,32 @@ src/
 
 	cup/
 		Parser.cup
-		(directives for CUP - to be used in ex4)
+		(directives for CUP)
 
 	jflex/
 		Scanner.jfled
-		(directives for JFlex - to be used in ex4)
+		(directives for JFlex)
 
 	Main.java
 		(main file, including a skeleton for the command line arguments we will use in the exercises. already does XML marshaling and unarmshaling and printing to Java)
 
 	Lexer.java
-		(generated when you build - to be used in ex4)
+		(generated when you build)
 
 	Parser.java
-		(generated when you build - to be used in ex4)
+		(generated when you build)
 
 	sym.java
-		(generated when you build - to be used in ex4)	
+		(generated when you build)	
 
 tools/*
-	(third party JARs for lexing & parsing (ex4) and XML manipulation)
+	(third party JARs for lexing & parsing  and XML manipulation)
 
 mjava.jar
 	(*the* build)
 
 README.md
 	(<-- you are here)
-
-
-=== All those things with ex4?? ===
-Ignore them (for now; you know, Chekhov's gun and the like).
 
 === Compiling the project ===
 ant
@@ -80,5 +76,3 @@ java -jar mjavac.jar unmarshal print examples/BinaryTree.xml res.java
 
 === From AST XML to... AST XML ===
 java -jar mjavac.jar unmarshal marshal examples/BinaryTree.xml res.xml
-
-(you will use the code for this "marhsal" option when generating ASTs in ex1,ex4)
