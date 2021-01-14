@@ -1,0 +1,14 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<classpath>
+	<classpathentry kind="con" path="org.eclipse.jdt.launching.JRE_CONTAINER"/>
+	<classpathentry kind="src" path="src"/>
+	<classpathentry kind="lib" path="mjavac.jar"/>
+	<classpathentry kind="lib" path="tools/jakarta.activation-api-1.2.2.jar"/>
+	<classpathentry kind="lib" path="tools/jakarta.xml.bind-api-2.3.3.jar"/>
+	<classpathentry kind="lib" path="tools/java-cup-11b-runtime.jar"/>
+	<classpathentry kind="lib" path="tools/java-cup-11b.jar"/>
+	<classpathentry kind="lib" path="tools/jaxb-impl-2.3.3.jar"/>
+	<classpathentry kind="lib" path="tools/jaxb-jxc-2.3.3.jar"/>
+	<classpathentry kind="lib" path="tools/JFlex.jar"/>
+	<classpathentry kind="output" path="build"/>
+</classpath>
