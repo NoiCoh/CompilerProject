@@ -1,7 +1,25 @@
 
 # Welcome to the compiler project 2020!
-## Implementation of a compiler for an object-oriented language.
+## Implemention of a compiler for an object-oriented language called MiniJava into LLVM assembly/IR
 
+MiniJava is (almost exactly) a subset of Java, defined in the Appendix of Appel and Palsberg's Modern Compiler Implementation in Java, 2nd edition and described on the MiniJava web site- http://www.cambridge.org/resources/052182060X/
+
+### Main Tasks:
+
+**AST Analysis: Variable & Method Renaming**
+Implemention of variable & method renaming on MiniJava ASTs (Abstract Syntax Trees).
+- Understanding scoping and resolving variables' name.
+- Traversing the class inheritance hierarchy.
+- Resolving method calls according to the static type of the object.
+
+**Code Generation**
+translates a MiniJava AST into equivalent code in the intermediate representation used by the LLVM compiler project.
+
+**Semantic Checks**
+In this part of the project we validate a MiniJava AST to ensure that it conforms to the MiniJava specification, and in particular satisfies all the assumptions we have utilized for code generation.
+
+**Lexing & Parsing**
+Generates ASTs from textual representations of MiniJava programs.
 
 **********************************************************************************************************************
 
