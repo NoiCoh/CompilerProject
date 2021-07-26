@@ -1,5 +1,6 @@
-#Welcome to the compiler project 2020!
-##implementation of a compiler for an object-oriented language.
+
+# Welcome to the compiler project 2020!
+## Implementation of a compiler for an object-oriented language.
 
 
 **********************************************************************************************************************
