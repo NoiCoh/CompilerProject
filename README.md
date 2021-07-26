@@ -12,13 +12,13 @@ Implemention of variable & method renaming on MiniJava ASTs (Abstract Syntax Tre
 - Traversing the class inheritance hierarchy.
 - Resolving method calls according to the static type of the object.
 
-**Code Generation**
+**Code Generation:**
 translates a MiniJava AST into equivalent code in the intermediate representation used by the LLVM compiler project.
 
-**Semantic Checks**
+**Semantic Checks:**
 In this part of the project we validate a MiniJava AST to ensure that it conforms to the MiniJava specification, and in particular satisfies all the assumptions we have utilized for code generation.
 
-**Lexing & Parsing**
+**Lexing & Parsing:**
 Generates ASTs from textual representations of MiniJava programs.
 
 **********************************************************************************************************************
